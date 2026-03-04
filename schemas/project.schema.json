@@ -1,0 +1,85 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Project Schema",
+  "type": "object",
+  "required": ["id", "name", "status", "created_at"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^proj_"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "one_sentence_goal": {
+      "type": "string"
+    },
+    "kpis": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "target", "validator"],
+        "properties": {
+          "name": {"type": "string"},
+          "target": {"type": "string"},
+          "validator": {"type": "string"},
+          "priority": {"type": "string", "enum": ["P0", "P1", "P2"]}
+        }
+      }
+    },
+    "definition_of_done": {
+      "type": "array",
+      "items": {"type": "string"}
+    },
+    "constraints": {
+      "type": "object",
+      "properties": {
+        "must_not": {"type": "array", "items": {"type": "string"}},
+        "must_use": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "operating_mode": {
+      "type": "string",
+      "enum": ["safe", "normal", "turbo"]
+    },
+    "execution_limits": {
+      "type": "object",
+      "properties": {
+        "max_concurrency": {"type": "integer", "minimum": 1},
+        "retry_limit": {"type": "integer", "minimum": 1}
+      }
+    },
+    "routing_policy": {
+      "type": "object",
+      "properties": {
+        "default_llm_connection": {"type": "string"},
+        "fallback_llm_connection": {"type": "string"},
+        "prefer_local_model": {"type": "boolean"}
+      }
+    },
+    "governance": {
+      "type": "object",
+      "properties": {
+        "require_pr_only": {"type": "boolean"},
+        "require_verifier_for": {"type": "array", "items": {"type": "string"}},
+        "human_gate_required_for": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "status": {
+      "type": "string",
+      "enum": ["active", "paused", "completed", "archived"]
+    },
+    "current_bottleneck": {"type": "string"},
+    "next_3_tasks": {
+      "type": "array",
+      "items": {"type": "string", "pattern": "^task_"}
+    },
+    "created_by": {
+      "type": "string",
+      "enum": ["human", "planner"]
+    },
+    "created_at": {"type": "string", "format": "date-time"},
+    "updated_at": {"type": "string", "format": "date-time"}
+  }
+}

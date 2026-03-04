@@ -1,0 +1,80 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ReviewCard Schema",
+  "type": "object",
+  "required": ["id", "type", "status", "created_at"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^gate_"
+    },
+    "project_id": {
+      "type": "string",
+      "pattern": "^proj_"
+    },
+    "type": {
+      "type": "string",
+      "enum": ["task_review", "skill_install", "connection_scope", "policy_change", "kpi_failure", "repo_write"]
+    },
+    "risk_level": {
+      "type": "string",
+      "enum": ["low", "medium", "high"]
+    },
+    "context": {
+      "type": "object",
+      "required": ["summary", "why_now"],
+      "properties": {
+        "summary": {"type": "string"},
+        "why_now": {"type": "string"},
+        "affected_entities": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "proposal": {
+      "type": "object",
+      "properties": {
+        "change": {"type": "string"},
+        "options": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {"type": "string"},
+              "description": {"type": "string"},
+              "tradeoffs": {"type": "array", "items": {"type": "string"}}
+            }
+          }
+        },
+        "recommended_option": {"type": "string"}
+      }
+    },
+    "evidence_ids": {
+      "type": "array",
+      "items": {"type": "string", "pattern": "^evp_"}
+    },
+    "impact_preview": {
+      "type": "object",
+      "properties": {
+        "files": {"type": "array", "items": {"type": "string"}},
+        "permissions": {"type": "array", "items": {"type": "string"}},
+        "cost_estimate": {"type": "string"},
+        "time_estimate": {"type": "string"}
+      }
+    },
+    "status": {
+      "type": "string",
+      "enum": ["pending", "approved", "rejected", "modified"]
+    },
+    "resolution": {
+      "type": "object",
+      "properties": {
+        "by": {"type": "string"},
+        "decision": {"type": "string", "enum": ["approved", "rejected", "modified"]},
+        "notes": {"type": "string"},
+        "constraints_added": {"type": "array", "items": {"type": "string"}},
+        "resolved_at": {"type": "string", "format": "date-time"}
+      }
+    },
+    "created_at": {"type": "string", "format": "date-time"},
+    "updated_at": {"type": "string", "format": "date-time"}
+  }
+}

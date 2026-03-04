@@ -1,0 +1,95 @@
+{
+  "project": "AI Founder OS",
+  "tasks": [
+    {
+      "id": "task_001",
+      "title": "Implement Core Data Schemas",
+      "goal": "Create JSON schemas for all core entities (Idea, Project, Task, Artifact, EvidencePack, Experience)",
+      "expected_artifact": "schemas/*.schema.json",
+      "validator": "schema_validation",
+      "risk_level": "high",
+      "status": "todo"
+    },
+    {
+      "id": "task_002",
+      "title": "Implement Planner Loop",
+      "goal": "Build the core Planner orchestration engine with task scheduling and worker assignment",
+      "expected_artifact": "src/planner/planner.py",
+      "validator": "unit_test",
+      "risk_level": "high",
+      "status": "todo"
+    },
+    {
+      "id": "task_003",
+      "title": "Implement Worker Registry",
+      "goal": "Create worker registry system with XP tracking and reputation",
+      "expected_artifact": "src/workers/registry.py",
+      "validator": "unit_test",
+      "risk_level": "medium",
+      "status": "todo"
+    },
+    {
+      "id": "task_004",
+      "title": "Implement Policy Engine",
+      "goal": "Build policy enforcement engine with Execution, Safety, and Quality policies",
+      "expected_artifact": "src/policy/engine.py",
+      "validator": "integration_test",
+      "risk_level": "high",
+      "status": "todo"
+    },
+    {
+      "id": "task_005",
+      "title": "Implement Connection Manager",
+      "goal": "Create connection manager for API keys, OAuth, and local models with capability tokens",
+      "expected_artifact": "src/connections/manager.py",
+      "validator": "integration_test",
+      "risk_level": "high",
+      "status": "todo"
+    },
+    {
+      "id": "task_006",
+      "title": "Implement Experience Ledger",
+      "goal": "Build experience storage and retrieval system with XP credits",
+      "expected_artifact": "src/experience/ledger.py",
+      "validator": "unit_test",
+      "risk_level": "medium",
+      "status": "todo"
+    },
+    {
+      "id": "task_007",
+      "title": "Implement Skill Hub Loader",
+      "goal": "Create skill loader with manifest validation and security scanning",
+      "expected_artifact": "src/skills/loader.py",
+      "validator": "unit_test",
+      "risk_level": "medium",
+      "status": "todo"
+    },
+    {
+      "id": "task_008",
+      "title": "Implement Dashboard API",
+      "goal": "Build dashboard backend with project path graph and review inbox",
+      "expected_artifact": "src/dashboard/api.py",
+      "validator": "integration_test",
+      "risk_level": "medium",
+      "status": "todo"
+    },
+    {
+      "id": "task_009",
+      "title": "Implement Human Gate System",
+      "goal": "Create Review Card generation and approval workflow",
+      "expected_artifact": "src/policy/human_gate.py",
+      "validator": "unit_test",
+      "risk_level": "high",
+      "status": "todo"
+    },
+    {
+      "id": "task_010",
+      "title": "Implement Realtime Command Interface",
+      "goal": "Build conversational command parser for real-time Planner control",
+      "expected_artifact": "src/planner/commands.py",
+      "validator": "unit_test",
+      "risk_level": "medium",
+      "status": "todo"
+    }
+  ]
+}

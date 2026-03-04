@@ -1,0 +1,97 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "EvidencePack Schema",
+  "type": "object",
+  "required": ["id", "task_id", "created_at"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^evp_"
+    },
+    "project_id": {
+      "type": "string",
+      "pattern": "^proj_"
+    },
+    "task_id": {
+      "type": "string",
+      "pattern": "^task_"
+    },
+    "artifact_ids": {
+      "type": "array",
+      "items": {"type": "string", "pattern": "^artifact_"}
+    },
+    "repro": {
+      "type": "object",
+      "required": ["commands"],
+      "properties": {
+        "commands": {
+          "type": "array",
+          "items": {"type": "string"},
+          "minItems": 1
+        },
+        "environment": {
+          "type": "object",
+          "properties": {
+            "os": {"type": "string"},
+            "runtime": {"type": "string", "enum": ["python", "node", "bash", "docker"]},
+            "versions": {"type": "object"}
+          }
+        }
+      }
+    },
+    "validation": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "validator_id": {"type": "string"},
+          "status": {"type": "string", "enum": ["pass", "fail", "skipped"]},
+          "output_uri": {"type": "string"},
+          "summary": {"type": "string"}
+        }
+      }
+    },
+    "metrics": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {"type": "string"},
+          "value": {},
+          "threshold": {"type": "string"},
+          "pass": {"type": "boolean"}
+        }
+      }
+    },
+    "logs": {
+      "type": "object",
+      "properties": {
+        "stdout_tail": {"type": "string"},
+        "stderr_tail": {"type": "string"},
+        "sanitized": {"type": "boolean"}
+      }
+    },
+    "diff_summary": {
+      "type": "object",
+      "properties": {
+        "files_changed": {"type": "array", "items": {"type": "string"}},
+        "lines_added": {"type": "integer"},
+        "lines_removed": {"type": "integer"}
+      }
+    },
+    "risk_note": {
+      "type": "object",
+      "properties": {
+        "uncertainty": {"type": "string", "enum": ["low", "medium", "high"]},
+        "assumptions": {"type": "array", "items": {"type": "string"}},
+        "known_limits": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "created_by": {
+      "type": "string",
+      "enum": ["worker", "verifier"]
+    },
+    "created_at": {"type": "string", "format": "date-time"},
+    "updated_at": {"type": "string", "format": "date-time"}
+  }
+}

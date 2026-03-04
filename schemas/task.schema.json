@@ -1,0 +1,98 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Task Schema",
+  "type": "object",
+  "required": ["id", "project_id", "goal", "state", "created_at"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^task_"
+    },
+    "project_id": {
+      "type": "string",
+      "pattern": "^proj_"
+    },
+    "title": {"type": "string"},
+    "goal": {"type": "string", "minLength": 1},
+    "inputs": {
+      "type": "object",
+      "properties": {
+        "documents": {"type": "array", "items": {"type": "string"}},
+        "artifacts": {"type": "array", "items": {"type": "string"}},
+        "urls": {"type": "array", "items": {"type": "string"}},
+        "parameters": {"type": "object"}
+      }
+    },
+    "expected_artifact": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["code", "doc", "config", "dataset", "report", "test", "schema"]
+        },
+        "path_hint": {"type": "string"},
+        "acceptance_criteria": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "validators": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "type", "command", "blocking"],
+        "properties": {
+          "id": {"type": "string"},
+          "type": {"type": "string", "enum": ["unit_test", "schema_check", "benchmark", "lint", "human_review", "custom_script"]},
+          "command": {"type": "string"},
+          "success_criteria": {"type": "string"},
+          "blocking": {"type": "boolean"}
+        }
+      }
+    },
+    "risk_level": {
+      "type": "string",
+      "enum": ["low", "medium", "high"]
+    },
+    "required_capabilities": {
+      "type": "array",
+      "items": {"type": "string"}
+    },
+    "routing_hints": {
+      "type": "object",
+      "properties": {
+        "worker_type": {"type": "string", "enum": ["builder", "researcher", "documenter", "verifier", "evaluator"]},
+        "preferred_connection": {"type": "string"},
+        "fallback_connection": {"type": "string"}
+      }
+    },
+    "state": {
+      "type": "string",
+      "enum": ["created", "queued", "assigned", "running", "needs_review", "verifying", "verified", "failed", "canceled", "blocked"]
+    },
+    "retry_count": {"type": "integer", "minimum": 0},
+    "depends_on": {
+      "type": "array",
+      "items": {"type": "string", "pattern": "^task_"}
+    },
+    "created_by": {
+      "type": "string",
+      "enum": ["planner", "human"]
+    },
+    "assigned_to": {
+      "type": "object",
+      "properties": {
+        "worker_id": {"type": "string"},
+        "assigned_at": {"type": "string", "format": "date-time"}
+      }
+    },
+    "timestamps": {
+      "type": "object",
+      "properties": {
+        "created_at": {"type": "string", "format": "date-time"},
+        "updated_at": {"type": "string", "format": "date-time"},
+        "started_at": {"type": "string", "format": "date-time"},
+        "ended_at": {"type": "string", "format": "date-time"}
+      }
+    }
+  }
+}
