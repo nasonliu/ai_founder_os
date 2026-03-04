@@ -8,7 +8,7 @@
       "expected_artifact": "schemas/*.schema.json",
       "validator": "schema_validation",
       "risk_level": "high",
-      "status": "todo"
+      "status": "completed"
     },
     {
       "id": "task_002",
@@ -17,7 +17,7 @@
       "expected_artifact": "src/planner/planner.py",
       "validator": "unit_test",
       "risk_level": "high",
-      "status": "todo"
+      "status": "completed"
     },
     {
       "id": "task_003",
