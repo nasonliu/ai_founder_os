@@ -3,8 +3,8 @@
   "tasks": [
     {
       "id": "task_011",
-      "title": "Initialize Next.js Dashboard Project",
-      "goal": "Set up React/Next.js project with TypeScript and Tailwind CSS",
+      "title": "Initialize Frontend Dashboard Project",
+      "goal": "Set up React/Vite project with TypeScript and Tailwind CSS",
       "expected_artifact": "frontend/",
       "validator": "build_test",
       "risk_level": "medium",
@@ -13,11 +13,11 @@
     {
       "id": "task_012",
       "title": "Create Dashboard UI Components",
-      "goal": "Build main dashboard components (Project Board, Task List, Worker Monitor)",
+      "goal": "Build main dashboard components (Dashboard, TaskBoard, WorkerMonitor)",
       "expected_artifact": "frontend/src/components/",
       "validator": "build_test",
       "risk_level": "medium",
-      "status": "todo"
+      "status": "completed"
     },
     {
       "id": "task_013",
@@ -35,7 +35,7 @@
       "expected_artifact": "tests/integration/",
       "validator": "pytest",
       "risk_level": "low",
-      "status": "todo"
+      "status": "completed"
     },
     {
       "id": "task_015",
