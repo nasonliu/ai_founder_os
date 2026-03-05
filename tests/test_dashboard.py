@@ -1,11 +1,11 @@
 """
 AI Founder OS - Dashboard API Tests
 
-Tests for the Dashboard API module including:
-- Review Card (Human Gate) functionality
+Tests for the Dashboard API including:
+- Review Card Management (Human Gate)
 - Project Path Graph
-- Worker Monitor
-- Observability metrics
+- Observability Metrics
+- Dashboard State
 """
 
 import pytest
@@ -23,559 +23,670 @@ from dashboard.api import (
     WorkerMetrics,
     SystemMetrics,
     CostMetrics,
+    GateType,
     GateStatus,
     ExecutionMode,
+    ProjectStatus,
+    get_dashboard,
     create_dashboard
 )
 
 
-class TestReviewCard:
-    """Tests for Review Card (Human Gate) functionality"""
+class TestReviewCardManagement:
+    """Tests for Review Card management"""
     
     def test_create_review_card(self):
-        """Should create a review card with correct fields"""
+        """Should create a review card with correct ID format"""
         dashboard = create_dashboard()
         
         card = dashboard.create_review_card(
             project_id="proj_001",
-            gate_type="task_review",
-            risk_level="high",
-            summary="Review code changes",
-            why_now="Feature complete",
-            affected_entities=["task_001"],
-            change="Merge to main",
-            options=[{"id": "opt1", "description": "Approve"}],
-            recommended_option="opt1"
+            gate_type=GateType.TASK_REVIEW.value,
+            context={
+                "summary": "Test review",
+                "why_now": "Testing"
+            },
+            risk_level="medium"
         )
         
         assert card.id.startswith("gate_")
         assert card.project_id == "proj_001"
-        assert card.type == "task_review"
-        assert card.risk_level == "high"
-        assert card.status == "pending"
-        assert card.context["summary"] == "Review code changes"
+        assert card.status == GateStatus.PENDING.value
+        assert card.risk_level == "medium"
     
-    def test_get_pending_reviews(self):
-        """Should return pending reviews sorted by priority"""
+    def test_get_review_card(self):
+        """Should retrieve a review card by ID"""
         dashboard = create_dashboard()
         
-        # Create cards with different risk levels
+        created = dashboard.create_review_card(
+            project_id="proj_001",
+            gate_type=GateType.SKILL_INSTALL.value,
+            context={"summary": "Test", "why_now": "Testing"}
+        )
+        
+        retrieved = dashboard.get_review_card(created.id)
+        
+        assert retrieved is not None
+        assert retrieved.id == created.id
+        assert retrieved.gate_type == GateType.SKILL_INSTALL.value
+    
+    def test_list_review_cards_by_status(self):
+        """Should filter review cards by status"""
+        dashboard = create_dashboard()
+        
+        # Create cards with different statuses
+        card1 = dashboard.create_review_card(
+            project_id="proj_001",
+            gate_type=GateType.TASK_REVIEW.value,
+            context={"summary": "Card 1", "why_now": "Test"}
+        )
+        
+        card2 = dashboard.create_review_card(
+            project_id="proj_001",
+            gate_type=GateType.TASK_REVIEW.value,
+            context={"summary": "Card 2", "why_now": "Test"}
+        )
+        
+        # Approve one card
+        dashboard.approve_review_card(card1.id, "Approved")
+        
+        # List pending
+        pending = dashboard.list_review_cards(status=GateStatus.PENDING.value)
+        assert len(pending) == 1
+        assert pending[0].id == card2.id
+        
+        # List approved
+        approved = dashboard.list_review_cards(status=GateStatus.APPROVED.value)
+        assert len(approved) == 1
+        assert approved[0].id == card1.id
+    
+    def test_list_review_cards_by_project(self):
+        """Should filter review cards by project"""
+        dashboard = create_dashboard()
+        
         dashboard.create_review_card(
             project_id="proj_001",
-            gate_type="task_review",
-            risk_level="low",
-            summary="Low risk review",
-            why_now="...",
-            affected_entities=[],
-            change="..."
+            gate_type=GateType.TASK_REVIEW.value,
+            context={"summary": "Project 1", "why_now": "Test"}
         )
+        
+        dashboard.create_review_card(
+            project_id="proj_002",
+            gate_type=GateType.TASK_REVIEW.value,
+            context={"summary": "Project 2", "why_now": "Test"}
+        )
+        
+        proj1_cards = dashboard.list_review_cards(project_id="proj_001")
+        
+        assert len(proj1_cards) == 1
+        assert proj1_cards[0].project_id == "proj_001"
+    
+    def test_list_review_cards_by_type(self):
+        """Should filter review cards by type"""
+        dashboard = create_dashboard()
+        
         dashboard.create_review_card(
             project_id="proj_001",
-            gate_type="task_review",
-            risk_level="high",
-            summary="High risk review",
-            why_now="...",
-            affected_entities=[],
-            change="..."
+            gate_type=GateType.TASK_REVIEW.value,
+            context={"summary": "Task", "why_now": "Test"}
         )
+        
+        dashboard.create_review_card(
+            project_id="proj_001",
+            gate_type=GateType.SKILL_INSTALL.value,
+            context={"summary": "Skill", "why_now": "Test"}
+        )
+        
+        task_reviews = dashboard.list_review_cards(gate_type=GateType.TASK_REVIEW.value)
+        
+        assert len(task_reviews) == 1
+        assert task_reviews[0].gate_type == GateType.TASK_REVIEW.value
+    
+    def test_get_pending_reviews(self):
+        """Should return all pending review cards"""
+        dashboard = create_dashboard()
+        
+        for i in range(3):
+            dashboard.create_review_card(
+                project_id=f"proj_{i:03d}",
+                gate_type=GateType.TASK_REVIEW.value,
+                context={"summary": f"Card {i}", "why_now": "Test"}
+            )
         
         pending = dashboard.get_pending_reviews()
         
-        # High risk should come first
-        assert len(pending) == 2
-        assert pending[0].risk_level == "high"
+        assert len(pending) == 3
     
-    def test_get_pending_reviews_by_project(self):
-        """Should filter pending reviews by project"""
-        dashboard = create_dashboard()
-        
-        dashboard.create_review_card(
-            project_id="proj_001",
-            gate_type="task_review",
-            risk_level="low",
-            summary="Project 1 review",
-            why_now="...",
-            affected_entities=[],
-            change="..."
-        )
-        dashboard.create_review_card(
-            project_id="proj_002",
-            gate_type="task_review",
-            risk_level="low",
-            summary="Project 2 review",
-            why_now="...",
-            affected_entities=[],
-            change="..."
-        )
-        
-        pending_proj1 = dashboard.get_pending_reviews("proj_001")
-        
-        assert len(pending_proj1) == 1
-        assert pending_proj1[0].project_id == "proj_001"
-    
-    def test_approve_review(self):
+    def test_approve_review_card(self):
         """Should approve a review card"""
         dashboard = create_dashboard()
         
         card = dashboard.create_review_card(
             project_id="proj_001",
-            gate_type="task_review",
-            risk_level="medium",
-            summary="Test review",
-            why_now="...",
-            affected_entities=[],
-            change="..."
+            gate_type=GateType.TASK_REVIEW.value,
+            context={"summary": "Test", "why_now": "Test"}
         )
         
-        result = dashboard.approve_review(card.id, "Looks good!")
+        approved = dashboard.approve_review_card(card.id, "Looks good!")
         
-        assert result is True
-        updated = dashboard.get_review_card(card.id)
-        assert updated.status == "approved"
-        assert updated.resolution["decision"] == "approved"
-        assert updated.resolution["notes"] == "Looks good!"
+        assert approved is not None
+        assert approved.status == GateStatus.APPROVED.value
+        assert approved.resolution["decision"] == "approved"
+        assert approved.resolution["notes"] == "Looks good!"
+        assert "resolved_at" in approved.resolution
     
-    def test_reject_review(self):
+    def test_reject_review_card(self):
         """Should reject a review card"""
         dashboard = create_dashboard()
         
         card = dashboard.create_review_card(
             project_id="proj_001",
-            gate_type="task_review",
-            risk_level="medium",
-            summary="Test review",
-            why_now="...",
-            affected_entities=[],
-            change="..."
+            gate_type=GateType.TASK_REVIEW.value,
+            context={"summary": "Test", "why_now": "Test"}
         )
         
-        result = dashboard.reject_review(card.id, "Needs changes")
+        rejected = dashboard.reject_review_card(card.id, "Not ready yet")
         
-        assert result is True
-        updated = dashboard.get_review_card(card.id)
-        assert updated.status == "rejected"
-        assert updated.resolution["decision"] == "rejected"
+        assert rejected is not None
+        assert rejected.status == GateStatus.REJECTED.value
+        assert rejected.resolution["decision"] == "rejected"
+        assert rejected.resolution["notes"] == "Not ready yet"
     
-    def test_modify_review(self):
-        """Should approve with modifications"""
+    def test_modify_review_card(self):
+        """Should modify a review card with constraints"""
         dashboard = create_dashboard()
         
         card = dashboard.create_review_card(
             project_id="proj_001",
-            gate_type="task_review",
-            risk_level="medium",
-            summary="Test review",
-            why_now="...",
-            affected_entities=[],
-            change="..."
+            gate_type=GateType.TASK_REVIEW.value,
+            context={"summary": "Test", "why_now": "Test"}
         )
         
-        constraints = ["require_test_coverage", "require_docs"]
-        result = dashboard.modify_review(
+        constraints = ["must_verify", "limit_concurrency"]
+        
+        modified = dashboard.modify_review_card(
             card.id,
             "Approved with constraints",
             constraints
         )
         
-        assert result is True
-        updated = dashboard.get_review_card(card.id)
-        assert updated.status == "modified"
-        assert updated.resolution["decision"] == "modified"
-        assert updated.resolution["constraints_added"] == constraints
+        assert modified is not None
+        assert modified.status == GateStatus.MODIFIED.value
+        assert modified.resolution["decision"] == "modified"
+        assert modified.resolution["constraints_added"] == constraints
     
     def test_review_stats(self):
         """Should return correct review statistics"""
         dashboard = create_dashboard()
         
-        # Create some cards
-        c1 = dashboard.create_review_card("proj_001", "task_review", "high", "s", "w", [], "c")
-        c2 = dashboard.create_review_card("proj_001", "skill_install", "medium", "s", "w", [], "c")
+        # Create various cards
+        dashboard.create_review_card(
+            project_id="proj_001",
+            gate_type=GateType.TASK_REVIEW.value,
+            context={"summary": "1", "why_now": "Test"},
+            risk_level="high"
+        )
+        
+        card2 = dashboard.create_review_card(
+            project_id="proj_001",
+            gate_type=GateType.SKILL_INSTALL.value,
+            context={"summary": "2", "why_now": "Test"},
+            risk_level="medium"
+        )
+        
+        card3 = dashboard.create_review_card(
+            project_id="proj_001",
+            gate_type=GateType.TASK_REVIEW.value,
+            context={"summary": "3", "why_now": "Test"}
+        )
         
         # Approve one
-        dashboard.approve_review(c1.id)
+        dashboard.approve_review_card(card2.id)
+        
+        # Reject one
+        dashboard.reject_review_card(card3.id, "Rejected")
         
         stats = dashboard.get_review_stats()
         
-        assert stats["total"] == 2
-        assert stats["pending"] == 1
-        assert stats["approved"] == 1
-        assert stats["by_type"]["task_review"] == 1
+        assert stats["total_cards"] == 3
+        assert stats["pending_count"] == 1
+        assert stats["by_status"]["pending"] == 1
+        assert stats["by_status"]["approved"] == 1
+        assert stats["by_status"]["rejected"] == 1
+        assert stats["by_type"]["task_review"] == 2
         assert stats["by_type"]["skill_install"] == 1
-        assert stats["by_risk_level"]["high"] == 1
-    
-    def test_get_next_gate(self):
-        """Should return highest priority pending gate"""
-        dashboard = create_dashboard()
-        
-        # Create cards
-        dashboard.create_review_card(
-            "proj_001", "task_review", "low", "low", "w", [], "c"
-        )
-        dashboard.create_review_card(
-            "proj_001", "task_review", "high", "high", "w", [], "c"
-        )
-        
-        next_gate = dashboard.get_next_gate()
-        
-        assert next_gate is not None
-        assert next_gate["risk_level"] == "high"
-        assert next_gate["summary"] == "high"
+        assert stats["by_risk"]["high"] == 1
+        assert stats["by_risk"]["medium"] == 1
 
 
 class TestProjectPathGraph:
     """Tests for Project Path Graph"""
     
-    def test_build_project_path(self):
-        """Should build project path from tasks"""
+    def test_create_path_graph(self):
+        """Should create path graph from tasks"""
+        dashboard = create_dashboard()
+        
+        tasks = [
+            {
+                "id": "task_001",
+                "title": "Implement Core",
+                "state": "completed",
+                "depends_on": []
+            },
+            {
+                "id": "task_002",
+                "title": "Build Feature",
+                "state": "running",
+                "depends_on": ["task_001"]
+            },
+            {
+                "id": "task_003",
+                "title": "Write Tests",
+                "state": "pending",
+                "depends_on": ["task_002"]
+            }
+        ]
+        
+        graph = dashboard.create_path_graph("proj_001", tasks)
+        
+        assert graph.project_id == "proj_001"
+        assert len(graph.nodes) == 3
+        assert len(graph.edges) == 2  # task_001 -> task_002, task_002 -> task_003
+        
+        # Check node statuses
+        node_dict = {n.id: n for n in graph.nodes}
+        assert node_dict["task_001"].status == "completed"
+        assert node_dict["task_002"].status == "running"
+        assert node_dict["task_003"].status == "pending"
+        
+        # Current node should be the running one
+        assert graph.current_node_id == "task_002"
+    
+    def test_create_path_graph_with_artifacts(self):
+        """Should create path graph with artifacts"""
         dashboard = create_dashboard()
         
         tasks = [
             {
                 "id": "task_001",
                 "title": "Implement Feature",
-                "goal": "Build a new feature",
-                "state": "verified",
-                "expected_artifact": {"path_hint": "src/feature.py"}
-            },
-            {
-                "id": "task_002",
-                "title": "Write Tests",
-                "goal": "Write unit tests",
-                "state": "running",
-                "expected_artifact": {"path_hint": "tests/test_feature.py"}
+                "state": "completed",
+                "depends_on": []
             }
         ]
         
-        path = dashboard.build_project_path(
-            "proj_001",
-            "My Project",
-            tasks
-        )
+        artifacts = [
+            {
+                "id": "artifact_001",
+                "name": "feature.py",
+                "task_id": "task_001"
+            }
+        ]
         
-        assert path.id == "proj_001_root"
-        assert path.type == "project"
-        assert len(path.children) == 2
+        graph = dashboard.create_path_graph("proj_001", tasks, artifacts)
+        
+        assert len(graph.nodes) == 2  # task + artifact
+        
+        # Check artifact node
+        artifact_node = next(n for n in graph.nodes if n.node_type == "artifact")
+        assert artifact_node.artifact_id == "artifact_001"
+        assert artifact_node.status == "completed"
+        
+        # Check edge
+        assert len(graph.edges) == 1
     
-    def test_get_project_path(self):
-        """Should return project path as dictionary"""
+    def test_get_path_graph(self):
+        """Should retrieve path graph by project ID"""
         dashboard = create_dashboard()
         
-        tasks = [{"id": "task_001", "title": "Test", "goal": "...", "state": "completed"}]
+        tasks = [{"id": "task_001", "title": "Test", "state": "completed", "depends_on": []}]
         
-        dashboard.build_project_path("proj_001", "Test Project", tasks)
-        result = dashboard.get_project_path("proj_001")
+        created = dashboard.create_path_graph("proj_001", tasks)
+        retrieved = dashboard.get_path_graph("proj_001")
         
-        assert result is not None
-        assert result["id"] == "proj_001_root"
-        assert result["type"] == "project"
+        assert retrieved is not None
+        assert retrieved.project_id == created.project_id
     
-    def test_update_task_status(self):
-        """Should update task status in path"""
+    def test_update_path_graph_node(self):
+        """Should update node status in path graph"""
         dashboard = create_dashboard()
         
-        tasks = [{"id": "task_001", "title": "Test", "goal": "...", "state": "running"}]
+        tasks = [
+            {
+                "id": "task_001",
+                "title": "Task 1",
+                "state": "running",
+                "depends_on": []
+            },
+            {
+                "id": "task_002",
+                "title": "Task 2",
+                "state": "pending",
+                "depends_on": ["task_001"]
+            }
+        ]
         
-        dashboard.build_project_path("proj_001", "Test", tasks)
+        graph = dashboard.create_path_graph("proj_001", tasks)
         
-        result = dashboard.update_task_status("proj_001", "task_001", "completed")
+        # Update task_001 to completed
+        updated = dashboard.update_path_graph_node("proj_001", "task_001", "completed")
         
-        assert result is True
+        assert updated is not None
+        node_dict = {n.id: n for n in updated.nodes}
+        assert node_dict["task_001"].status == "completed"
+        # Current should now be task_002 (the next pending/running)
+        assert updated.current_node_id == "task_002"
+    
+    def test_task_state_to_node_status_mapping(self):
+        """Should correctly map task states to node statuses"""
+        dashboard = create_dashboard()
         
-        # Verify update
-        path = dashboard.get_project_path("proj_001")
-        task_node = path["children"][0]
-        assert task_node["status"] == "completed"
+        test_cases = [
+            ("created", "pending"),
+            ("queued", "running"),
+            ("assigned", "running"),
+            ("running", "running"),
+            ("needs_review", "pending"),
+            ("verifying", "running"),
+            ("verified", "completed"),
+            ("completed", "completed"),
+            ("failed", "failed"),
+            ("canceled", "blocked"),
+            ("blocked", "blocked"),
+        ]
+        
+        for task_state, expected_status in test_cases:
+            tasks = [{"id": "task_test", "title": "Test", "state": task_state, "depends_on": []}]
+            graph = dashboard.create_path_graph("proj_temp", tasks)
+            
+            assert graph.nodes[0].status == expected_status, f"Failed for state: {task_state}"
 
 
-class TestWorkerMonitor:
-    """Tests for Worker Monitor"""
+class TestWorkerMetrics:
+    """Tests for Worker Metrics"""
     
-    def test_register_worker(self):
-        """Should register a new worker"""
+    def test_update_worker_metrics(self):
+        """Should update worker metrics"""
         dashboard = create_dashboard()
         
-        metrics = dashboard.register_worker(
-            "worker_builder_01",
-            "builder",
-            "ollama:deepseek-8b"
-        )
+        dashboard.update_worker_metrics({
+            "success_rate": 0.85,
+            "total_tasks": 100,
+            "idle_count": 3
+        })
         
-        assert metrics.worker_id == "worker_builder_01"
-        assert metrics.worker_type == "builder"
-        assert metrics.status == "idle"
-        assert metrics.xp_total == 0
+        metrics = dashboard.get_worker_metrics()
+        
+        assert metrics.success_rate == 0.85
+        assert metrics.total_tasks == 100
+        assert metrics.idle_count == 3
     
-    def test_update_worker_status(self):
-        """Should update worker status"""
-        dashboard = create_dashboard()
-        dashboard.register_worker("worker_01", "builder")
-        
-        result = dashboard.update_worker_status(
-            "worker_01",
-            "busy",
-            "task_001"
-        )
-        
-        assert result is True
-        
-        updated = dashboard.get_worker_metrics("worker_01")
-        assert updated["status"] == "busy"
-        assert updated["current_task_id"] == "task_001"
-    
-    def test_record_worker_success(self):
-        """Should record successful task completion"""
-        dashboard = create_dashboard()
-        dashboard.register_worker("worker_01", "builder")
-        
-        result = dashboard.record_worker_success("worker_01", 15.0)
-        
-        assert result is True
-        
-        metrics = dashboard.get_worker_metrics("worker_01")
-        assert metrics["success_count"] == 1
-        assert metrics["xp_total"] == 1
-        assert metrics["success_rate"] == 1.0
-    
-    def test_record_worker_failure(self):
-        """Should record failed task"""
-        dashboard = create_dashboard()
-        dashboard.register_worker("worker_01", "builder")
-        
-        # First record a success
-        dashboard.record_worker_success("worker_01", 10.0)
-        
-        # Then record failure
-        result = dashboard.record_worker_failure("worker_01")
-        
-        assert result is True
-        
-        metrics = dashboard.get_worker_metrics("worker_01")
-        assert metrics["failure_count"] == 1
-        assert metrics["success_rate"] == 0.5
-    
-    def test_record_experience_reuse(self):
-        """Should record experience reuse for XP bonus"""
-        dashboard = create_dashboard()
-        dashboard.register_worker("worker_01", "builder")
-        
-        result = dashboard.record_experience_reuse("worker_01")
-        
-        assert result is True
-        
-        metrics = dashboard.get_worker_metrics("worker_01")
-        assert metrics["reused_count"] == 1
-        assert metrics["xp_total"] == 2  # 2 XP bonus
-    
-    def test_get_worker_stats(self):
-        """Should return aggregated worker statistics"""
+    def test_record_task_completion(self):
+        """Should record task completion and update metrics"""
         dashboard = create_dashboard()
         
-        dashboard.register_worker("w1", "builder")
-        dashboard.register_worker("w2", "builder")
-        dashboard.register_worker("w3", "verifier")
+        dashboard.record_task_completion(success=True, latency_seconds=100.0)
+        dashboard.record_task_completion(success=True, latency_seconds=200.0)
+        dashboard.record_task_completion(success=False, latency_seconds=50.0)
         
-        dashboard.update_worker_status("w1", "busy")
-        dashboard.update_worker_status("w2", "idle")
+        metrics = dashboard.get_worker_metrics()
         
-        stats = dashboard.get_worker_stats()
-        
-        assert stats["total"] == 3
-        assert stats["busy"] == 1
-        assert stats["idle"] == 2
-        assert stats["by_type"]["builder"] == 2
-        assert stats["by_type"]["verifier"] == 1
+        assert metrics.tasks_completed == 2
+        assert metrics.tasks_failed == 1
+        # Average should be (100 + 200) / 2 = 150
+        assert metrics.avg_latency_seconds == 150.0
 
 
-class TestObservability:
-    """Tests for Observability metrics"""
+class TestSystemMetrics:
+    """Tests for System Metrics"""
     
     def test_update_system_metrics(self):
         """Should update system metrics"""
         dashboard = create_dashboard()
         
-        metrics = dashboard.update_system_metrics(
-            total_tasks=100,
-            completed_tasks=80,
-            failed_tasks=5,
-            queue_length=10,
-            avg_latency=5.5,
-            api_usage=1000
-        )
+        dashboard.update_system_metrics({
+            "cpu_percent": 45.5,
+            "memory_percent": 62.3,
+            "disk_percent": 30.0
+        })
         
-        assert metrics.total_tasks == 100
-        assert metrics.completed_tasks == 80
-        assert metrics.failed_tasks == 5
-        assert metrics.queue_length == 10
-        assert metrics.error_rate == 0.05
-    
-    def test_error_rate_calculation(self):
-        """Should calculate error rate correctly"""
-        dashboard = create_dashboard()
+        metrics = dashboard.get_system_metrics()
         
-        dashboard.update_system_metrics(
-            total_tasks=100,
-            completed_tasks=90,
-            failed_tasks=10
-        )
-        
-        result = dashboard.get_system_metrics()
-        
-        assert result["error_rate"] == 0.1
-    
-    def test_cost_metrics(self):
-        """Should track cost metrics"""
-        dashboard = create_dashboard()
-        
-        dashboard.update_cost_metrics(
-            daily=10.0,
-            weekly=50.0,
-            monthly=200.0,
-            project_costs={"proj_001": 5.0, "proj_002": 5.0},
-            model_costs={"gpt-4": 8.0, "deepseek-8b": 2.0}
-        )
-        
-        result = dashboard.get_cost_metrics()
-        
-        assert result["daily_spend"] == 10.0
-        assert result["weekly_spend"] == 50.0
-        assert result["project_spend"]["proj_001"] == 5.0
-        assert result["model_spend"]["gpt-4"] == 8.0
-    
-    def test_worker_counts_in_metrics(self):
-        """Should include worker counts in system metrics"""
-        dashboard = create_dashboard()
-        
-        dashboard.register_worker("w1", "builder")
-        dashboard.register_worker("w2", "builder")
-        dashboard.update_worker_status("w1", "busy")
-        
-        dashboard.update_system_metrics(total_tasks=10)
-        
-        result = dashboard.get_system_metrics()
-        
-        assert result["active_workers"] == 1
-        assert result["idle_workers"] == 1
+        assert metrics.cpu_percent == 45.5
+        assert metrics.memory_percent == 62.3
+        assert metrics.disk_percent == 30.0
 
 
-class TestSystemStatus:
-    """Tests for System Status"""
+class TestCostMetrics:
+    """Tests for Cost Metrics"""
     
-    def test_get_status(self):
-        """Should return overall system status"""
+    def test_update_cost_metrics(self):
+        """Should update cost metrics"""
         dashboard = create_dashboard()
         
-        dashboard.register_worker("w1", "builder")
+        dashboard.update_cost_metrics({
+            "daily_spend_usd": 25.50,
+            "monthly_spend_usd": 500.0,
+            "api_calls": 10000
+        })
         
-        status = dashboard.get_status()
+        metrics = dashboard.get_cost_metrics()
         
-        assert status["system_status"] == "running"
-        assert status["execution_mode"] == "normal"
-        assert "uptime_seconds" in status
-        assert "review_stats" in status
-        assert "worker_stats" in status
+        assert metrics.daily_spend_usd == 25.50
+        assert metrics.monthly_spend_usd == 500.0
+        assert metrics.api_calls == 10000
+    
+    def test_record_api_call(self):
+        """Should record API calls and update cost"""
+        dashboard = create_dashboard()
+        
+        dashboard.record_api_call(cost_usd=0.01)
+        dashboard.record_api_call(cost_usd=0.02)
+        
+        metrics = dashboard.get_cost_metrics()
+        
+        assert metrics.api_calls == 2
+        assert metrics.daily_spend_usd == 0.03
+
+
+class TestDashboardState:
+    """Tests for Dashboard State"""
+    
+    def test_get_dashboard_state(self):
+        """Should return complete dashboard state"""
+        dashboard = create_dashboard()
+        
+        # Add some data
+        dashboard.create_review_card(
+            project_id="proj_001",
+            gate_type=GateType.TASK_REVIEW.value,
+            context={"summary": "Test", "why_now": "Test"}
+        )
+        
+        dashboard.set_system_health("degraded")
+        dashboard.set_execution_mode("turbo")
+        
+        state = dashboard.get_dashboard_state(
+            ideas_count=10,
+            projects_count=5,
+            tasks_count=20,
+            workers_idle=3
+        )
+        
+        assert state.system_health == "degraded"
+        assert state.execution_mode == "turbo"
+        assert state.total_ideas == 10
+        assert state.active_projects == 5
+        assert state.pending_tasks == 20
+        assert state.idle_workers == 3
+        assert state.pending_reviews == 1
+    
+    def test_set_system_health(self):
+        """Should set valid system health"""
+        dashboard = create_dashboard()
+        
+        dashboard.set_system_health("degraded")
+        assert dashboard.system_health == "degraded"
+        
+        dashboard.set_system_health("unhealthy")
+        assert dashboard.system_health == "unhealthy"
     
     def test_set_execution_mode(self):
-        """Should set execution mode"""
+        """Should set valid execution mode"""
         dashboard = create_dashboard()
         
-        assert dashboard.set_execution_mode("safe") is True
-        assert dashboard.set_execution_mode("turbo") is True
-        assert dashboard.set_execution_mode("invalid") is False
+        dashboard.set_execution_mode("safe")
+        assert dashboard.execution_mode == "safe"
+        
+        dashboard.set_execution_mode("normal")
+        assert dashboard.execution_mode == "normal"
+        
+        dashboard.set_execution_mode("turbo")
+        assert dashboard.execution_mode == "turbo"
     
-    def test_pause_resume_system(self):
-        """Should pause and resume system"""
+    def test_set_execution_mode_invalid(self):
+        """Should raise error for invalid mode"""
         dashboard = create_dashboard()
         
-        dashboard.pause_system()
-        assert dashboard.system_status == "paused"
-        
-        dashboard.resume_system()
-        assert dashboard.system_status == "running"
+        with pytest.raises(ValueError):
+            dashboard.set_execution_mode("invalid_mode")
 
 
-class TestStateManagement:
-    """Tests for state import/export"""
+class TestExportImport:
+    """Tests for State Export/Import"""
     
-    def test_export_import_state(self):
-        """Should export and import state"""
+    def test_export_state(self):
+        """Should export complete dashboard state"""
         dashboard = create_dashboard()
         
-        # Create some data
         dashboard.create_review_card(
-            "proj_001", "task_review", "high", "s", "w", [], "c"
+            project_id="proj_001",
+            gate_type=GateType.TASK_REVIEW.value,
+            context={"summary": "Test", "why_now": "Test"}
         )
-        dashboard.register_worker("w1", "builder")
         
-        # Export
+        dashboard.set_execution_mode("turbo")
+        
+        tasks = [{"id": "task_001", "title": "Test", "state": "completed", "depends_on": []}]
+        dashboard.create_path_graph("proj_001", tasks)
+        
         state = dashboard.export_state()
         
+        assert "review_cards" in state
+        assert "path_graphs" in state
+        assert "system_health" in state
+        assert "execution_mode" in state
         assert len(state["review_cards"]) == 1
-        assert len(state["worker_metrics"]) == 1
+        assert state["execution_mode"] == "turbo"
+    
+    def test_import_state(self):
+        """Should import dashboard state"""
+        dashboard = create_dashboard()
         
-        # Import to new dashboard
-        dashboard2 = create_dashboard()
-        dashboard2.import_state(state)
+        # Create source data
+        source = create_dashboard()
+        source.create_review_card(
+            project_id="proj_001",
+            gate_type=GateType.TASK_REVIEW.value,
+            context={"summary": "Test", "why_now": "Test"}
+        )
+        source.set_execution_mode("turbo")
         
-        # Verify
-        pending = dashboard2.get_pending_reviews()
-        assert len(pending) == 1
+        exported = source.export_state()
         
-        workers = dashboard2.get_all_workers()
-        assert len(workers) == 1
+        # Import into dashboard
+        dashboard.import_state(exported)
+        
+        # Verify imported state
+        cards = dashboard.list_review_cards()
+        assert len(cards) == 1
+        assert dashboard.execution_mode == "turbo"
 
 
-class TestReviewCardModel:
-    """Tests for ReviewCard model directly"""
+class TestFactoryFunctions:
+    """Tests for factory functions"""
     
-    def test_review_card_creation(self):
-        """Should create review card with auto-generated ID"""
-        card = ReviewCard(
-            project_id="proj_001",
-            type="task_review",
-            risk_level="high",
-            context={"summary": "test"},
-            proposal={"change": "test"}
-        )
+    def test_get_dashboard_singleton(self):
+        """Should return same instance for get_dashboard"""
+        dashboard1 = get_dashboard()
+        dashboard2 = get_dashboard()
         
-        assert card.id.startswith("gate_")
-        assert card.status == "pending"
+        assert dashboard1 is dashboard2
     
-    def test_review_card_to_dict(self):
-        """Should convert to dictionary"""
-        card = ReviewCard(
-            project_id="proj_001",
-            type="task_review",
-            risk_level="high",
-            context={"summary": "test"},
-            proposal={"change": "test"}
-        )
+    def test_create_dashboard_new_instance(self):
+        """Should create new instance with create_dashboard"""
+        dashboard = create_dashboard()
         
-        data = card.to_dict()
-        
-        assert data["project_id"] == "proj_001"
-        assert data["status"] == "pending"
+        assert isinstance(dashboard, DashboardAPI)
+
+
+class TestReviewCardTypes:
+    """Tests for Review Card types"""
     
-    def test_review_card_from_dict(self):
-        """Should create from dictionary"""
-        data = {
-            "id": "gate_123",
-            "project_id": "proj_001",
-            "type": "task_review",
-            "risk_level": "high",
-            "context": {"summary": "test"},
-            "proposal": {"change": "test"},
-            "evidence_ids": [],
-            "impact_preview": {},
-            "status": "pending",
-            "resolution": None,
-            "created_at": "2026-01-01T00:00:00Z",
-            "updated_at": "2026-01-01T00:00:00Z"
-        }
+    def test_all_review_card_types(self):
+        """Should support all defined card types"""
+        dashboard = create_dashboard()
         
-        card = ReviewCard.from_dict(data)
+        types = [
+            GateType.TASK_REVIEW.value,
+            GateType.SKILL_INSTALL.value,
+            GateType.CONNECTION_SCOPE.value,
+            GateType.POLICY_CHANGE.value,
+            GateType.KPI_FAILURE.value,
+            GateType.REPO_WRITE.value,
+        ]
         
-        assert card.id == "gate_123"
-        assert card.project_id == "proj_001"
+        for gate_type in types:
+            card = dashboard.create_review_card(
+                project_id="proj_001",
+                gate_type=gate_type,
+                context={"summary": "Test", "why_now": "Test"}
+            )
+            assert card.gate_type == gate_type
+
+
+class TestEdgeCases:
+    """Tests for edge cases"""
+    
+    def test_get_nonexistent_review_card(self):
+        """Should return None for nonexistent card"""
+        dashboard = create_dashboard()
+        
+        result = dashboard.get_review_card("gate_nonexistent")
+        
+        assert result is None
+    
+    def test_approve_nonexistent_card(self):
+        """Should return None when approving nonexistent card"""
+        dashboard = create_dashboard()
+        
+        result = dashboard.approve_review_card("gate_nonexistent")
+        
+        assert result is None
+    
+    def test_get_nonexistent_path_graph(self):
+        """Should return None for nonexistent path graph"""
+        dashboard = create_dashboard()
+        
+        result = dashboard.get_path_graph("proj_nonexistent")
+        
+        assert result is None
+    
+    def test_update_nonexistent_path_graph(self):
+        """Should return None when updating nonexistent graph"""
+        dashboard = create_dashboard()
+        
+        result = dashboard.update_path_graph_node("proj_nonexistent", "node_001", "completed")
+        
+        assert result is None
+    
+    def test_empty_review_list(self):
+        """Should return empty list when no review cards"""
+        dashboard = create_dashboard()
+        
+        result = dashboard.list_review_cards()
+        
+        assert result == []
 
 
 if __name__ == "__main__":
