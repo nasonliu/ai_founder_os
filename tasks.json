@@ -71,7 +71,7 @@
       "expected_artifact": "src/dashboard/api.py",
       "validator": "integration_test",
       "risk_level": "medium",
-      "status": "todo"
+      "status": "completed"
     },
     {
       "id": "task_009",
