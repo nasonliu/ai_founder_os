@@ -89,7 +89,7 @@
       "expected_artifact": "src/planner/commands.py",
       "validator": "unit_test",
       "risk_level": "medium",
-      "status": "todo"
+      "status": "completed"
     }
   ]
 }
