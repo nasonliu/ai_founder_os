@@ -35,7 +35,7 @@
       "expected_artifact": "src/policy/engine.py",
       "validator": "integration_test",
       "risk_level": "high",
-      "status": "todo"
+      "status": "completed"
     },
     {
       "id": "task_005",
