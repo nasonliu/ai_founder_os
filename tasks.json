@@ -26,7 +26,7 @@
       "expected_artifact": "src/workers/registry.py",
       "validator": "unit_test",
       "risk_level": "medium",
-      "status": "todo"
+      "status": "completed"
     },
     {
       "id": "task_004",
