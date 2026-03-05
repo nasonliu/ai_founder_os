@@ -77,6 +77,11 @@ class ReviewCard:
             self.created_at = now
             self.updated_at = now
     
+    @property
+    def gate_type(self) -> str:
+        """Alias for type property for backward compatibility"""
+        return self.type
+    
     def to_dict(self) -> Dict:
         return asdict(self)
     
@@ -294,11 +299,8 @@ class DashboardAPI:
     
     def set_execution_mode(self, mode: str) -> bool:
         """Set execution mode (compatibility wrapper)"""
-        try:
-            self._execution_mode = ExecutionMode(mode)
-            return True
-        except ValueError:
-            return False
+        self._execution_mode = ExecutionMode(mode)
+        return True
     
     def get_dashboard_state(self, ideas_count: int = 0, projects_count: int = 0,
                            tasks_count: int = 0, workers_idle: int = 0) -> Dict:
@@ -370,17 +372,28 @@ class DashboardAPI:
         self,
         project_id: str,
         gate_type: str,
-        risk_level: str,
-        summary: str,
-        why_now: str,
-        affected_entities: List[str],
-        change: str,
+        risk_level: str = "medium",
+        summary: str = None,
+        why_now: str = None,
+        affected_entities: List[str] = None,
+        change: str = None,
         options: List[Dict[str, Any]] = None,
         recommended_option: str = None,
         evidence_ids: List[str] = None,
-        impact_preview: Dict[str, Any] = None
+        impact_preview: Dict[str, Any] = None,
+        context: Dict[str, Any] = None
     ) -> ReviewCard:
         """Create a new review card for human approval"""
+        
+        # Support legacy context parameter for backward compatibility
+        if context:
+            summary = summary or context.get("summary", "")
+            why_now = why_now or context.get("why_now", "")
+            affected_entities = affected_entities or context.get("affected_entities", [])
+        
+        summary = summary or ""
+        why_now = why_now or ""
+        affected_entities = affected_entities or []
         
         card = ReviewCard(
             id=f"gate_{uuid.uuid4().hex[:8]}",
@@ -834,11 +847,8 @@ class DashboardAPI:
     
     def set_execution_mode(self, mode: str) -> bool:
         """Set execution mode (safe, normal, turbo)"""
-        try:
-            self.execution_mode = ExecutionMode(mode)
-            return True
-        except ValueError:
-            return False
+        self.execution_mode = ExecutionMode(mode)
+        return True
     
     def pause_system(self) -> None:
         """Pause the system"""

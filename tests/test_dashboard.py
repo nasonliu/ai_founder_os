@@ -42,10 +42,10 @@ class TestReviewCardManagement:
         card = dashboard.create_review_card(
             project_id="proj_001",
             gate_type=GateType.TASK_REVIEW.value,
-            context={
-                "summary": "Test review",
-                "why_now": "Testing"
-            },
+            summary="Test review",
+            why_now="Testing",
+            affected_entities=[],
+            change="test change",
             risk_level="medium"
         )
         
