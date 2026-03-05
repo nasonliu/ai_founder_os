@@ -63,6 +63,15 @@
       "validator": "ci_pass",
       "risk_level": "low",
       "status": "completed"
+    },
+    {
+      "id": "task_018",
+      "title": "Fix Dashboard Test Failures",
+      "goal": "Fix 15 failing tests in test_dashboard.py - resolve attribute mismatches between tests and implementation",
+      "expected_artifact": "tests/test_dashboard.py, src/dashboard/api.py",
+      "validator": "pytest",
+      "risk_level": "low",
+      "status": "completed"
     }
   ]
 }

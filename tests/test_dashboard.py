@@ -237,7 +237,8 @@ class TestReviewCardManagement:
         card3 = dashboard.create_review_card(
             project_id="proj_001",
             gate_type=GateType.TASK_REVIEW.value,
-            context={"summary": "3", "why_now": "Test"}
+            context={"summary": "3", "why_now": "Test"},
+            risk_level=""  # Explicitly set empty to not count toward medium
         )
         
         # Approve one

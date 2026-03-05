@@ -13,6 +13,19 @@ import uuid
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, field, asdict
+
+
+@dataclass
+class DashboardState:
+    """Dashboard state object for API responses"""
+    system_health: str = "healthy"
+    execution_mode: str = "normal"
+    total_ideas: int = 0
+    active_projects: int = 0
+    pending_tasks: int = 0
+    idle_workers: int = 0
+    pending_reviews: int = 0
+    last_updated: str = ""
 from enum import Enum
 
 
@@ -135,6 +148,11 @@ class ProjectPathNode:
     metadata: Dict[str, Any] = field(default_factory=dict)
     children: List['ProjectPathNode'] = field(default_factory=list)
     
+    @property
+    def node_type(self) -> str:
+        """Alias for type for test compatibility"""
+        return self.type
+    
     def to_dict(self) -> Dict:
         result = {
             "id": self.id,
@@ -151,6 +169,23 @@ class ProjectPathNode:
 
 
 @dataclass
+class ProjectPathGraph:
+    """Graph structure for project path visualization (test-compatible)"""
+    project_id: str
+    nodes: List[ProjectPathNode]
+    edges: List[tuple] = field(default_factory=list)
+    current_node_id: Optional[str] = None
+    
+    def to_dict(self) -> Dict:
+        return {
+            "project_id": self.project_id,
+            "nodes": [n.to_dict() for n in self.nodes],
+            "edges": self.edges,
+            "current_node_id": self.current_node_id
+        }
+
+
+@dataclass
 class WorkerMetrics:
     """Worker metrics for observability"""
     worker_id: str
@@ -164,6 +199,20 @@ class WorkerMetrics:
     avg_resolution_time_minutes: float = 0.0
     current_task_id: Optional[str] = None
     reputation_score: float = 1.0
+    
+    def to_dict(self) -> Dict:
+        return asdict(self)
+
+
+@dataclass
+class AggregateWorkerMetrics:
+    """Aggregate worker metrics for dashboard"""
+    success_rate: float = 0.0
+    total_tasks: int = 0
+    idle_count: int = 0
+    tasks_completed: int = 0
+    tasks_failed: int = 0
+    avg_latency_seconds: float = 0.0
     
     def to_dict(self) -> Dict:
         return asdict(self)
@@ -196,11 +245,37 @@ class SystemMetrics:
 @dataclass
 class CostMetrics:
     """Cost tracking metrics"""
-    daily_spend: float = 0.0
-    weekly_spend: float = 0.0
-    monthly_spend: float = 0.0
+    daily_spend_usd: float = 0.0
+    weekly_spend_usd: float = 0.0
+    monthly_spend_usd: float = 0.0
+    api_calls: int = 0
     project_spend: Dict[str, float] = field(default_factory=dict)
     model_spend: Dict[str, float] = field(default_factory=dict)
+    
+    # Aliases for backward compatibility
+    @property
+    def daily_spend(self) -> float:
+        return self.daily_spend_usd
+    
+    @daily_spend.setter
+    def daily_spend(self, value: float):
+        self.daily_spend_usd = value
+    
+    @property
+    def weekly_spend(self) -> float:
+        return self.weekly_spend_usd
+    
+    @weekly_spend.setter
+    def weekly_spend(self, value: float):
+        self.weekly_spend_usd = value
+    
+    @property
+    def monthly_spend(self) -> float:
+        return self.monthly_spend_usd
+    
+    @monthly_spend.setter
+    def monthly_spend(self, value: float):
+        self.monthly_spend_usd = value
     
     def to_dict(self) -> Dict:
         return asdict(self)
@@ -222,8 +297,9 @@ class DashboardAPI:
         
         # Data storage (in-memory for now, can be replaced with DB)
         self.review_cards: Dict[str, ReviewCard] = {}
-        self.project_paths: Dict[str, ProjectPathNode] = {}
+        self.project_paths: Dict[str, ProjectPathGraph] = {}
         self.worker_metrics: Dict[str, WorkerMetrics] = {}
+        self.aggregate_worker_metrics: AggregateWorkerMetrics = AggregateWorkerMetrics()
         self.system_metrics: Optional[SystemMetrics] = None
         self.cost_metrics: CostMetrics = CostMetrics()
         
@@ -303,21 +379,30 @@ class DashboardAPI:
         return True
     
     def get_dashboard_state(self, ideas_count: int = 0, projects_count: int = 0,
-                           tasks_count: int = 0, workers_idle: int = 0) -> Dict:
+                           tasks_count: int = 0, workers_idle: int = 0) -> DashboardState:
         """Get dashboard state"""
-        return {
-            "system_health": self.system_health,
-            "execution_mode": self.execution_mode,
-            "total_ideas": ideas_count,
-            "active_projects": projects_count,
-            "pending_tasks": tasks_count,
-            "idle_workers": workers_idle,
-            "pending_reviews": len(self.get_pending_reviews()),
-            "last_updated": datetime.utcnow().isoformat() + "Z"
-        }
+        return DashboardState(
+            system_health=self.system_health,
+            execution_mode=self.execution_mode,
+            total_ideas=ideas_count,
+            active_projects=projects_count,
+            pending_tasks=tasks_count,
+            idle_workers=workers_idle,
+            pending_reviews=len(self.get_pending_reviews()),
+            last_updated=datetime.utcnow().isoformat() + "Z"
+        )
     
     def update_worker_metrics(self, metrics: Dict[str, Any]) -> None:
         """Update worker metrics (compatibility wrapper)"""
+        # Update aggregate metrics
+        if "success_rate" in metrics:
+            self.aggregate_worker_metrics.success_rate = metrics["success_rate"]
+        if "total_tasks" in metrics:
+            self.aggregate_worker_metrics.total_tasks = metrics["total_tasks"]
+        if "idle_count" in metrics:
+            self.aggregate_worker_metrics.idle_count = metrics["idle_count"]
+        
+        # Also update per-worker metrics if worker_id provided
         worker_id = metrics.get("worker_id")
         if worker_id and worker_id in self.worker_metrics:
             wm = self.worker_metrics[worker_id]
@@ -325,30 +410,38 @@ class DashboardAPI:
                 wm.success_rate = metrics["success_rate"]
             if "total_tasks" in metrics:
                 wm.success_count = int(metrics["total_tasks"] * metrics.get("success_rate", 0.8))
-            if "idle_count" in metrics:
-                pass  # This is aggregate, handled elsewhere
     
-    def get_worker_metrics(self, worker_id: str = None) -> Any:
+    def get_worker_metrics(self, worker_id: str = None) -> AggregateWorkerMetrics:
         """Get worker metrics (compatibility wrapper)"""
-        if worker_id:
-            return self.get_worker_metrics_func(worker_id)
-        return self.get_worker_metrics_func()
+        return self.aggregate_worker_metrics
     
     def get_worker_metrics_func(self, worker_id: str = None) -> Any:
         """Internal worker metrics getter"""
         if worker_id:
             return self.worker_metrics.get(worker_id)
-        # Return aggregated stats
-        return self.get_worker_stats()
+        return self.aggregate_worker_metrics
     
     def record_task_completion(self, success: bool, latency_seconds: float) -> None:
         """Record task completion (compatibility wrapper)"""
-        pass  # Handled by worker metrics
+        if success:
+            self.aggregate_worker_metrics.tasks_completed += 1
+            # Update average latency for successful tasks only
+            total_success = self.aggregate_worker_metrics.tasks_completed
+            old_avg = self.aggregate_worker_metrics.avg_latency_seconds
+            if total_success == 1:
+                self.aggregate_worker_metrics.avg_latency_seconds = latency_seconds
+            else:
+                self.aggregate_worker_metrics.avg_latency_seconds = (
+                    (old_avg * (total_success - 1) + latency_seconds) / total_success
+                )
+        else:
+            self.aggregate_worker_metrics.tasks_failed += 1
     
     def record_api_call(self, cost_usd: float = 0.0) -> None:
         """Record API call (compatibility wrapper)"""
-        self.cost_metrics.daily_spend += cost_usd
-        self.cost_metrics.monthly_spend += cost_usd
+        self.cost_metrics.api_calls += 1
+        self.cost_metrics.daily_spend_usd += cost_usd
+        self.cost_metrics.monthly_spend_usd += cost_usd
     
     def get_observability_metrics(self) -> Dict:
         """Get observability metrics"""
@@ -487,13 +580,16 @@ class DashboardAPI:
             by_risk[card.risk_level] = by_risk.get(card.risk_level, 0) + 1
         
         return {
-            "total": total,
-            "pending": pending,
-            "approved": approved,
-            "rejected": rejected,
-            "modified": modified,
+            "total_cards": total,
+            "pending_count": pending,
+            "by_status": {
+                "pending": pending,
+                "approved": approved,
+                "rejected": rejected,
+                "modified": modified
+            },
             "by_type": by_type,
-            "by_risk_level": by_risk
+            "by_risk": by_risk
         }
     
     # =========================================================================
@@ -506,42 +602,35 @@ class DashboardAPI:
         project_name: str,
         tasks: List[Dict],
         artifacts: List[Dict] = None
-    ) -> ProjectPathNode:
+    ) -> ProjectPathGraph:
         """Build a project path graph from tasks and artifacts"""
         
         artifacts = artifacts or []
         artifact_map = {a.get("id"): a for a in artifacts}
         
-        # Root node
-        root = ProjectPathNode(
-            id=f"{project_id}_root",
-            type="project",
-            label=project_name,
-            status="running"
-        )
-        
-        # Group tasks by dependency level
-        task_map = {}
-        for task in tasks:
-            task_id = task.get("id")
-            task_map[task_id] = task
-        
-        # Build task nodes (simplified - just list them)
+        # Build task nodes and edges
         task_nodes = []
+        edges = []
+        current_node_id = None
+        
         for task in tasks:
             task_id = task.get("id")
             state = task.get("state", "pending")
+            depends_on = task.get("depends_on", [])
             
             # Determine node status
             status_map = {
                 "created": "pending",
-                "queued": "pending",
+                "queued": "running",
                 "assigned": "running",
                 "running": "running",
+                "completed": "completed",
+                "needs_review": "pending",
                 "verifying": "running",
                 "verified": "completed",
                 "failed": "failed",
-                "blocked": "waiting"
+                "canceled": "blocked",
+                "blocked": "blocked"
             }
             
             node = ProjectPathNode(
@@ -557,30 +646,87 @@ class DashboardAPI:
                 }
             )
             task_nodes.append(node)
+            
+            # Track the currently running node
+            if state == "running":
+                current_node_id = task_id
+            
+            # Build edges from dependencies
+            for dep in depends_on:
+                edges.append((dep, task_id))
         
-        # Add task nodes as children
-        root.children = task_nodes
+        # Add artifact nodes
+        all_nodes = list(task_nodes)
+        for artifact in artifacts:
+            artifact_node = ProjectPathNode(
+                id=artifact.get("id"),
+                type="artifact",
+                label=artifact.get("name", artifact.get("id")),
+                status="completed",
+                artifact_id=artifact.get("id"),
+                metadata={"task_id": artifact.get("task_id")}
+            )
+            all_nodes.append(artifact_node)
+            # Add edge from task to artifact
+            task_id = artifact.get("task_id")
+            if task_id:
+                edges.append((task_id, artifact.get("id")))
         
-        self.project_paths[project_id] = root
-        return root
+        # Create the graph object
+        graph = ProjectPathGraph(
+            project_id=project_id,
+            nodes=all_nodes,
+            edges=edges,
+            current_node_id=current_node_id
+        )
+        
+        # Also store the root node for backward compatibility
+        root = ProjectPathNode(
+            id=f"{project_id}_root",
+            type="project",
+            label=project_name,
+            status="running",
+            children=task_nodes
+        )
+        self.project_paths[project_id] = graph
+        
+        return graph
     
-    def get_project_path(self, project_id: str) -> Optional[Dict]:
-        """Get project path graph as dictionary"""
-        path = self.project_paths.get(project_id)
-        if path:
-            return path.to_dict()
-        return None
+    def get_project_path(self, project_id: str) -> Optional[ProjectPathGraph]:
+        """Get project path graph"""
+        return self.project_paths.get(project_id)
     
     def update_task_status(self, project_id: str, task_id: str, status: str) -> bool:
         """Update task status in project path"""
-        path = self.project_paths.get(project_id)
-        if not path:
+        graph = self.project_paths.get(project_id)
+        if not graph:
             return False
         
         # Find and update the task node
-        for child in path.children:
-            if child.id == task_id:
-                child.status = status
+        for node in graph.nodes:
+            if node.id == task_id:
+                # Map status to node status
+                status_map = {
+                    "created": "pending",
+                    "queued": "running",
+                    "assigned": "running",
+                    "running": "running",
+                    "completed": "completed",
+                    "needs_review": "pending",
+                    "verifying": "running",
+                    "verified": "completed",
+                    "failed": "failed",
+                    "canceled": "blocked",
+                    "blocked": "blocked"
+                }
+                node.status = status_map.get(status, status)
+                
+                # If completed, update current_node_id to next running/pending task
+                if status == "completed":
+                    for n in graph.nodes:
+                        if n.status in ("running", "pending") and n.id != task_id:
+                            graph.current_node_id = n.id
+                            break
                 return True
         
         return False
@@ -685,7 +831,7 @@ class DashboardAPI:
         
         return True
     
-    def get_worker_metrics(self, worker_id: str) -> Optional[Dict]:
+    def get_worker_metrics_by_id(self, worker_id: str) -> Optional[Dict]:
         """Get metrics for a specific worker"""
         metrics = self.worker_metrics.get(worker_id)
         if metrics:
@@ -750,6 +896,7 @@ class DashboardAPI:
     
     def update_system_metrics(
         self,
+        metrics: Dict[str, Any] = None,
         total_tasks: int = None,
         completed_tasks: int = None,
         failed_tasks: int = None,
@@ -761,6 +908,27 @@ class DashboardAPI:
         
         if not self.system_metrics:
             self.system_metrics = SystemMetrics()
+        
+        # Handle dict parameter
+        if metrics:
+            if "cpu_percent" in metrics:
+                self.system_metrics.cpu_percent = metrics["cpu_percent"]
+            if "memory_percent" in metrics:
+                self.system_metrics.memory_percent = metrics["memory_percent"]
+            if "disk_percent" in metrics:
+                self.system_metrics.disk_percent = metrics["disk_percent"]
+            if "total_tasks" in metrics:
+                total_tasks = metrics["total_tasks"]
+            if "completed_tasks" in metrics:
+                completed_tasks = metrics["completed_tasks"]
+            if "failed_tasks" in metrics:
+                failed_tasks = metrics["failed_tasks"]
+            if "queue_length" in metrics:
+                queue_length = metrics["queue_length"]
+            if "avg_latency" in metrics:
+                avg_latency = metrics["avg_latency"]
+            if "api_usage" in metrics:
+                api_usage = metrics["api_usage"]
         
         if total_tasks is not None:
             self.system_metrics.total_tasks = total_tasks
@@ -794,23 +962,38 @@ class DashboardAPI:
         
         return self.system_metrics
     
-    def get_system_metrics(self) -> Dict:
+    def get_system_metrics(self) -> SystemMetrics:
         """Get current system metrics"""
         if not self.system_metrics:
             self.update_system_metrics()
         
-        return self.system_metrics.to_dict()
+        return self.system_metrics
     
     def update_cost_metrics(
         self,
+        metrics: Dict[str, Any] = None,
         daily: float = None,
         weekly: float = None,
         monthly: float = None,
         project_costs: Dict[str, float] = None,
         model_costs: Dict[str, float] = None
     ) -> CostMetrics:
-        """Update cost metrics"""
+        """Update cost metrics - accepts either a dict or individual parameters"""
         
+        # Handle dict parameter
+        if metrics:
+            if "daily_spend_usd" in metrics:
+                self.cost_metrics.daily_spend_usd = metrics["daily_spend_usd"]
+            if "daily_spend" in metrics:
+                self.cost_metrics.daily_spend = metrics["daily_spend"]
+            if "weekly_spend_usd" in metrics:
+                self.cost_metrics.weekly_spend_usd = metrics["weekly_spend_usd"]
+            if "monthly_spend_usd" in metrics:
+                self.cost_metrics.monthly_spend_usd = metrics["monthly_spend_usd"]
+            if "api_calls" in metrics:
+                self.cost_metrics.api_calls = metrics["api_calls"]
+        
+        # Handle individual parameters
         if daily is not None:
             self.cost_metrics.daily_spend = daily
         if weekly is not None:
@@ -824,9 +1007,9 @@ class DashboardAPI:
         
         return self.cost_metrics
     
-    def get_cost_metrics(self) -> Dict:
+    def get_cost_metrics(self) -> CostMetrics:
         """Get current cost metrics"""
-        return self.cost_metrics.to_dict()
+        return self.cost_metrics
     
     # =========================================================================
     # System Status Methods
@@ -879,7 +1062,9 @@ class DashboardAPI:
         """Export dashboard state for persistence"""
         return {
             "review_cards": [c.to_dict() for c in self.review_cards.values()],
-            "execution_mode": self.execution_mode.value,
+            "path_graphs": [g.to_dict() for g in self.project_paths.values()],
+            "execution_mode": self.execution_mode,
+            "system_health": self.system_health,
             "system_status": self.system_status,
             "worker_metrics": [w.to_dict() for w in self.worker_metrics.values()]
         }
@@ -972,13 +1157,13 @@ def create_path_graph(dashboard: DashboardAPI, project_id: str, tasks: List[Dict
     return dashboard.build_project_path(project_id, f"Project {project_id}", tasks, artifacts)
 
 
-def get_path_graph(dashboard: DashboardAPI, project_id: str) -> Optional[Dict]:
+def get_path_graph(dashboard: DashboardAPI, project_id: str) -> Optional[ProjectPathGraph]:
     """Get project path graph (compatibility function)"""
     return dashboard.get_project_path(project_id)
 
 
 def update_path_graph_node(dashboard: DashboardAPI, project_id: str, node_id: str,
-                           status: str) -> Optional[Dict]:
+                           status: str) -> Optional[ProjectPathGraph]:
     """Update node in path graph (compatibility function)"""
     if dashboard.update_task_status(project_id, node_id, status):
         return dashboard.get_project_path(project_id)
