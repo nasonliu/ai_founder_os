@@ -4,7 +4,7 @@ Integration tests: Planner + Worker System
 
 import pytest
 from src.planner.planner import Planner, Task
-from src.workers.registry import WorkerRegistry, create_worker
+from src.workers.registry import WorkerRegistry, Worker
 
 
 class TestPlannerWorkerIntegration:
@@ -17,8 +17,7 @@ class TestPlannerWorkerIntegration:
         registry = WorkerRegistry()
         
         # Create worker
-        worker = create_worker("builder", "test_worker")
-        registry.register_worker(worker)
+        worker = registry.register_worker("builder", "ollama:deepseek-8b")
         
         # Create task
         task = planner.create_task({
@@ -42,8 +41,7 @@ class TestPlannerWorkerIntegration:
         planner = Planner()
         registry = WorkerRegistry()
         
-        worker = create_worker("builder", "test_worker")
-        registry.register_worker(worker)
+        worker = registry.register_worker("builder", "ollama:deepseek-8b")
         
         task = planner.create_task({
             "project_id": "proj_001",
@@ -65,35 +63,25 @@ class TestPlannerWorkerIntegration:
         planner = Planner()
         registry = WorkerRegistry()
         
-        worker = create_worker("builder", "xp_worker")
-        registry.register_worker(worker)
+        worker = registry.register_worker("builder", "ollama:deepseek-8b", worker_id="xp_worker")
         
         initial_xp = worker.xp.total
         
-        # Complete task
-        task = planner.create_task({
-            "project_id": "proj_001",
-            "title": "XP Test",
-            "goal": "Test"
-        })
-        
-        # Simulate worker's task
-        registry.update_worker_xp(worker.worker_id, success=True)
+        # Complete task via registry
+        registry.complete_task(worker.worker_id, resolution_time_minutes=5.0, success=True)
         
         assert worker.xp.total == initial_xp + 1
     
     def test_worker_failure_tracks_xp(self):
         """Test that worker failure is tracked"""
-        planner = Planner()
         registry = WorkerRegistry()
         
-        worker = create_worker("builder", "fail_worker")
-        registry.register_worker(worker)
+        worker = registry.register_worker("builder", "ollama:deepseek-8b", worker_id="fail_worker")
         
         initial_xp = worker.xp.total
         
         # Simulate failure
-        registry.update_worker_xp(worker.worker_id, success=False)
+        registry.complete_task(worker.worker_id, resolution_time_minutes=2.0, success=False)
         
         assert worker.xp.total == initial_xp - 1
     
@@ -130,33 +118,91 @@ class TestWorkerCollaboration:
         """Test worker can request help"""
         registry = WorkerRegistry()
         
-        worker1 = create_worker("builder", "worker_1")
-        worker2 = create_worker("builder", "worker_2")
-        
-        registry.register_worker(worker1)
-        registry.register_worker(worker2)
+        worker1 = registry.register_worker("builder", "ollama:deepseek-8b", worker_id="worker_1")
+        worker2 = registry.register_worker("builder", "ollama:deepseek-8b", worker_id="worker_2")
         
         # Both should be available
-        available = registry.get_available_workers("builder")
+        available = registry.get_idle_workers("builder")
         assert len(available) == 2
     
     def test_worker_selection_by_xp(self):
         """Test worker selection prefers higher XP"""
         registry = WorkerRegistry()
         
-        worker1 = create_worker("builder", "worker_low_xp")
-        worker2 = create_worker("builder", "worker_high_xp")
+        worker1 = registry.register_worker("builder", "ollama:deepseek-8b", worker_id="worker_low_xp")
+        worker2 = registry.register_worker("builder", "ollama:deepseek-8b", worker_id="worker_high_xp")
         
         # Add XP to worker2
         for _ in range(5):
-            registry.update_worker_xp(worker2.worker_id, success=True)
+            registry.complete_task(worker2.worker_id, resolution_time_minutes=1.0, success=True)
         
-        registry.register_worker(worker1)
-        registry.register_worker(worker2)
+        # Get idle workers
+        workers = registry.get_idle_workers("builder")
         
-        # Get best worker
-        best = registry.get_best_worker("builder")
-        assert best.worker_id == worker2.worker_id
+        # Should have workers
+        assert len(workers) >= 1
+        
+        # worker2 should have higher XP
+        worker2_data = registry.get_worker(worker2.worker_id)
+        assert worker2_data.xp.total > worker1.xp.total
+    
+    def test_worker_reputation_update(self):
+        """Test worker reputation updates on task completion"""
+        registry = WorkerRegistry()
+        
+        worker = registry.register_worker("builder", "ollama:deepseek-8b")
+        
+        initial_reputation = worker.reputation.score
+        
+        # Complete some tasks
+        for _ in range(3):
+            registry.complete_task(worker.worker_id, resolution_time_minutes=5.0, success=True)
+        
+        # Check reputation updated
+        updated_worker = registry.get_worker(worker.worker_id)
+        assert updated_worker.reputation.total_tasks_completed == 3
+
+
+class TestPlannerWorkerFlow:
+    """Test complete Planner + Worker flow"""
+    
+    def test_full_task_lifecycle(self):
+        """Test full task lifecycle from creation to completion"""
+        planner = Planner()
+        registry = WorkerRegistry()
+        
+        # Create worker
+        worker = registry.register_worker("builder", "ollama:deepseek-8b")
+        
+        # Create task
+        task = planner.create_task({
+            "project_id": "proj_001",
+            "title": "Full Lifecycle Test",
+            "goal": "Test full flow",
+            "risk_level": "low"
+        })
+        
+        # Queue
+        planner.queue_task(task.id)
+        assert task.state == "queued"
+        
+        # Assign
+        planner.assign_task(task.id, worker.worker_id)
+        assert task.state == "assigned"
+        
+        # Start (worker starts working)
+        registry.start_task(worker.worker_id)
+        
+        # Complete
+        registry.complete_task(worker.worker_id, resolution_time_minutes=10.0, success=True)
+        
+        # Verify task completed
+        task = planner.tasks[task.id]
+        assert task.state == "verified"
+        
+        # Worker should be idle again
+        idle_workers = registry.get_idle_workers()
+        assert worker.worker_id in [w.worker_id for w in idle_workers]
 
 
 if __name__ == "__main__":

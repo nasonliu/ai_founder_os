@@ -44,7 +44,7 @@
       "expected_artifact": "docs/api/",
       "validator": "manual_review",
       "risk_level": "low",
-      "status": "todo"
+      "status": "completed"
     },
     {
       "id": "task_016",
@@ -53,7 +53,7 @@
       "expected_artifact": "docs/deployment.md",
       "validator": "manual_review",
       "risk_level": "low",
-      "status": "todo"
+      "status": "completed"
     },
     {
       "id": "task_017",
@@ -62,7 +62,7 @@
       "expected_artifact": ".github/workflows/",
       "validator": "ci_pass",
       "risk_level": "low",
-      "status": "todo"
+      "status": "completed"
     }
   ]
 }
