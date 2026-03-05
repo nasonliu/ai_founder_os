@@ -53,7 +53,7 @@
       "expected_artifact": "src/experience/ledger.py",
       "validator": "unit_test",
       "risk_level": "medium",
-      "status": "todo"
+      "status": "completed"
     },
     {
       "id": "task_007",
