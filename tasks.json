@@ -26,7 +26,7 @@
       "expected_artifact": "frontend/src/lib/api.ts",
       "validator": "integration_test",
       "risk_level": "medium",
-      "status": "todo"
+      "status": "completed"
     },
     {
       "id": "task_014",
