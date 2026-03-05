@@ -623,6 +623,32 @@ class PolicyEngine:
         self.consecutive_failures = 0
         self.kill_switch_armed = False
     
+    @property
+    def execution_mode(self) -> OperatingMode:
+        """Alias for operating_mode for backward compatibility"""
+        return self.operating_mode
+    
+    def set_execution_mode(self, mode: str) -> None:
+        """
+        Set the execution mode.
+        
+        Args:
+            mode: One of 'safe', 'normal', or 'turbo'
+        """
+        mode_lower = mode.lower()
+        if mode_lower == 'safe':
+            self.operating_mode = OperatingMode.SAFE
+        elif mode_lower == 'normal':
+            self.operating_mode = OperatingMode.NORMAL
+        elif mode_lower == 'turbo':
+            self.operating_mode = OperatingMode.TURBO
+        else:
+            raise ValueError(f"Unknown execution mode: {mode}. Must be 'safe', 'normal', or 'turbo'")
+    
+    def get_incidents(self, status: Optional[str] = None) -> List[Dict]:
+        """Get incidents from safety policy"""
+        return self.safety_policy.get_incidents(status)
+    
     def evaluate(self, context: Dict[str, Any], 
                  policy_types: Optional[List[PolicyType]] = None) -> PolicyCheckResult:
         """
