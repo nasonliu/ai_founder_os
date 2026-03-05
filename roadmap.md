@@ -1,6 +1,6 @@
 # AI Founder OS Roadmap
 
-## Phase 1 — Core Infrastructure
+## Phase 1 — Core Infrastructure ✅ COMPLETE
 
 ### Milestone 1.1: Foundation
 - [x] Core Data Schemas (Idea, Project, Task, Artifact)
@@ -14,7 +14,7 @@
 - [x] Quality Policy
 - [x] Policy Enforcement
 
-## Phase 2 — Worker System
+## Phase 2 — Worker System ✅ COMPLETE
 
 ### Milestone 2.1: Worker Execution
 - [x] Builder Worker
@@ -28,7 +28,7 @@
 - [x] XP Credit System
 - [x] Help Request Flow
 
-## Phase 3 — Skills & Connections
+## Phase 3 — Skills & Connections ✅ COMPLETE
 
 ### Milestone 3.1: Skills
 - [x] Skill Loader
@@ -43,7 +43,7 @@
 - [x] Local Model Support (Ollama, vLLM)
 - [x] Capability Token System
 
-## Phase 4 — Human Interface
+## Phase 4 — Human Interface ✅ COMPLETE
 
 ### Milestone 4.1: Human Gate
 - [x] Review Card System
@@ -57,7 +57,7 @@
 - [x] Worker Monitor
 - [x] Observability Metrics
 
-## Phase 5 — Autonomous Development
+## Phase 5 — Autonomous Development ✅ COMPLETE
 
 ### Milestone 5.1: Command System
 - [x] Realtime Command Parser
@@ -73,36 +73,73 @@
 
 ---
 
-## Success Criteria
+## Phase 6 — Frontend Dashboard
 
-### Phase 1 ✅ Complete
-- All schemas validate correctly
-- Planner can generate and dispatch tasks
-- Workers can execute and return results
+### Milestone 6.1: React/Next.js Setup
+- [ ] Initialize Next.js project
+- [ ] Set up project structure
+- [ ] Configure Tailwind CSS
+- [ ] Add TypeScript support
 
-### Phase 2 ✅ Complete
-- Workers can collaborate and share experiences
-- XP system correctly tracks contributions
-- Failed tasks generate diagnostic information
+### Milestone 6.2: UI Components
+- [ ] Project Dashboard component
+- [ ] Task Board component
+- [ ] Worker Monitor component
+- [ ] Experience Ledger component
 
-### Phase 3 ✅ Complete
-- Skills can be installed and executed safely
-- Multiple API providers work correctly
-- Local models integrate seamlessly
-
-### Phase 4 ✅ Complete
-- Human gates trigger appropriately
-- Dashboard shows accurate project state
-- All key metrics are visible
-
-### Phase 5 ✅ Complete
-- Founder can control system via conversation
-- System can run autonomously
-- Self-improvement mechanisms work
+### Milestone 6.3: API Integration
+- [ ] Connect to backend API
+- [ ] Real-time updates
+- [ ] Authentication
 
 ---
 
-## 🎉 All Phases Complete!
+## Phase 7 — Integration Tests
 
-**Total: 10/10 core tasks implemented**
-**Tests: 323+ passing**
+### Milestone 7.1: Test Infrastructure
+- [ ] Set up pytest fixtures
+- [ ] Create test databases
+- [ ] Add test utilities
+
+### Milestone 7.2: E2E Tests
+- [ ] Planner + Worker integration
+- [ ] Policy Engine integration
+- [ ] Connection Manager integration
+- [ ] Human Gate integration
+
+---
+
+## Phase 8 — Documentation
+
+### Milestone 8.1: API Documentation
+- [ ] API reference docs
+- [ ] Code examples
+- [ ] Usage tutorials
+
+### Milestone 8.2: Deployment Guide
+- [ ] Docker setup
+- [ ] Environment configuration
+- [ ] Cloud deployment
+
+---
+
+## Phase 9 — CI/CD
+
+### Milestone 9.1: GitHub Actions
+- [ ] Lint workflow
+- [ ] Test workflow
+- [ ] Build workflow
+
+### Milestone 9.2: Quality Gates
+- [ ] Code coverage
+- [ ] Security scanning
+- [ ] Performance benchmarks
+
+---
+
+## 🎯 Current Priorities
+
+1. **Frontend Dashboard** - Make the system visible
+2. **Integration Tests** - Ensure modules work together
+3. **Documentation** - Help users get started
+4. **CI/CD** - Automate quality checks
