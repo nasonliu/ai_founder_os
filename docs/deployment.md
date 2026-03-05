@@ -1,321 +1,703 @@
-# Deployment Guide
+# AI Founder OS - Deployment Guide
 
-This guide covers deploying AI Founder OS using Docker and environment configuration.
+This guide covers deploying AI Founder OS using Docker and containerization.
+
+## Table of Contents
+
+- [Prerequisites](#prerequisites)
+- [Docker Setup](#docker-setup)
+- [Configuration](#configuration)
+- [Deployment Options](#deployment-options)
+- [Production Deployment](#production-deployment)
+- [Monitoring](#monitoring)
+- [Troubleshooting](#troubleshooting)
+
+---
 
 ## Prerequisites
 
-- Docker 20.10+
-- Docker Compose 2.0+
-- Python 3.11+ (for local development)
+Before deploying, ensure you have:
 
-## Quick Start
+- **Docker** 20.10+ installed
+- **Docker Compose** 2.0+ (for local development)
+- **Python** 3.10+ (for local development)
+- **Git** for cloning the repository
 
-### Using Docker Compose
+### Required Services
+
+- PostgreSQL 14+ (for persistent data)
+- Redis 7+ (for caching and task queue)
+- Ollama (optional, for local LLM)
+
+---
+
+## Docker Setup
+
+### Dockerfile
+
+Create a `Docker project root:
+
+```file` in thedockerfile
+FROM python:3.10-slim
+
+# Set environment variables
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+
+# Set work directory
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    git \
+    curl \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements first for better caching
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy application code
+COPY src/ ./src/
+COPY frontend/ ./frontend/
+COPY prompts/ ./prompts/
+COPY schemas/ ./schemas/
+
+# Expose ports
+EXPOSE 8000 3000
+
+# Default command
+CMD ["python", "-m", "src.planner.planner"]
+```
+
+### requirements.txt
+
+```txt
+# Core dependencies
+pydantic>=2.0.0
+dataclasses-json>=0.6.0
+
+# Web server
+uvicorn>=0.23.0
+fastapi>=0.100.0
+
+# Database
+sqlalchemy>=2.0.0
+asyncpg>=0.28.0
+alembic>=1.11.0
+
+# Redis
+redis>=4.5.0
+aioredis>=2.0.0
+
+# Utilities
+python-dotenv>=1.0.0
+httpx>=0.24.0
+python-dateutil>=2.8.0
+
+# Testing (dev)
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+pytest-cov>=4.1.0
+```
+
+### Docker Compose
+
+For local development, create `docker-compose.yml`:
+
+```yaml
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:14-alpine
+    environment:
+      POSTGRES_USER: aifos
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-change_me_in_production}
+      POSTGRES_DB: aifos
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aifos"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis Cache & Queue
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # AI Founder OS Backend
+  backend:
+    build: .
+    command: uvicorn src.dashboard.api:app --host 0.0.0.0 --port 8000 --reload
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://aifos:${DB_PASSWORD:-change_me_in_production}@postgres:5432/aifos
+      - REDIS_URL=redis://redis:6379
+      - LOG_LEVEL=INFO
+    volumes:
+      - ./src:/app/src
+      - ./data:/app/data
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # Frontend (React)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    environment:
+      - VITE_API_URL=http://localhost:8000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+
+  # Ollama (Local LLM - Optional)
+  ollama:
+    image: ollama/ollama:latest
+    volumes:
+      - ollama_data:/root/.ollama
+    ports:
+      - "11434:11434"
+    environment:
+      - OLLAMA_HOST=0.0.0.0
+
+volumes:
+  postgres_data:
+  redis_data:
+  ollama_data:
+```
+
+---
+
+## Configuration
+
+### Environment Variables
+
+Create a `.env` file:
 
 ```bash
-# Clone the repository
+# Database
+DB_PASSWORD=your_secure_password_here
+
+# API Keys (use secrets in production!)
+OPENAI_API_KEY=sk-...
+ANTHROPIC_API_KEY=sk-ant-...
+DEEPSEEK_API_KEY=sk-...
+
+# GitHub (for repo operations)
+GITHUB_TOKEN=ghp_...
+
+# Slack (for notifications)
+SLACK_BOT_TOKEN=xoxb-...
+SLACK_SIGNING_SECRET=...
+
+# Execution
+MAX_CONCURRENCY=3
+RETRY_LIMIT=3
+
+# Logging
+LOG_LEVEL=INFO
+```
+
+### Configuration File
+
+Create `config.yaml`:
+
+```yaml
+system:
+  name: "AI Founder OS"
+  version: "1.0.0"
+  
+execution:
+  mode: "normal"  # safe, normal, turbo
+  max_concurrency: 3
+  retry_limit: 3
+  slowdown_threshold: 3
+
+database:
+  url: "postgresql+asyncpg://aifos:password@localhost:5432/aifos"
+  pool_size: 10
+  max_overflow: 20
+
+redis:
+  url: "redis://localhost:6379"
+  max_connections: 50
+
+workers:
+  default_types:
+    - builder
+    - researcher
+    - documenter
+    - verifier
+    - evaluator
+  
+  models:
+    primary: "ollama:deepseek-8b"
+    fallback: "openai:gpt-4"
+
+policy:
+  execution:
+    concurrency_limits:
+      safe: 1
+      normal: 3
+      turbo: 5
+    default_retry_limit: 3
+    
+  safety:
+    blocked_domains: []
+    allowed_network: ["api.openai.com", "api.anthropic.com"]
+    
+  quality:
+    kpi_thresholds:
+      test_coverage: ">=80%"
+      latency_p99: "<500ms"
+
+connections:
+  routing_rules:
+    builder:
+      primary: "local_ollama:deepseek-8b"
+      fallback: "cloud_openai:gpt-4"
+      
+  budget:
+    default_daily_limit: "10usd"
+    warning_threshold: 0.8
+```
+
+---
+
+## Deployment Options
+
+### 1. Local Development
+
+```bash
+# Clone and setup
 git clone https://github.com/your-org/ai-founder-os.git
 cd ai-founder-os
+
+# Copy and edit environment
+cp .env.example .env
 
 # Start all services
 docker-compose up -d
 
 # View logs
 docker-compose logs -f
+
+# Stop services
+docker-compose down
 ```
 
-## Docker Setup
+### 2. Single Container
 
-### Dockerfile
+```bash
+# Build image
+docker build -t aifos:latest .
 
-```dockerfile
-FROM python:3.11-slim
-
-WORKDIR /app
-
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    curl \
-    git \
-    && rm -rf /var/lib/apt/lists/*
-
-# Copy requirements
-COPY requirements.txt .
-
-# Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Copy application code
-COPY src/ ./src/
-COPY schemas/ ./schemas/
-COPY prompts/ ./prompts/
-
-# Set environment variables
-ENV PYTHONUNBUFFERED=1
-ENV PYTHONPATH=/app
-
-EXPOSE 8000
-
-CMD ["python", "-m", "src.dashboard.api"]
+# Run with external database
+docker run -d \
+  --name aifos \
+  -p 8000:8000 \
+  -e DATABASE_URL="postgresql+asyncpg://..." \
+  -e REDIS_URL="redis://..." \
+  aifos:latest
 ```
 
-### Docker Compose Configuration
+### 3. Kubernetes Deployment
+
+Deploy to Kubernetes with the following manifests:
+
+```yaml
+# deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aifos-backend
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: aifos-backend
+  template:
+    metadata:
+      labels:
+        app: aifos-backend
+    spec:
+      containers:
+      - name: backend
+        image: aifos:latest
+        ports:
+        - containerPort: 8000
+        env:
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: aifos-secrets
+              key: database-url
+        - name: REDIS_URL
+          valueFrom:
+            configMapKeyRef:
+              name: aifos-config
+              key: redis-url
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "2000m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+
+---
+# service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: aifos-backend
+spec:
+  selector:
+    app: aifos-backend
+  ports:
+  - port: 80
+    targetPort: 8000
+  type: ClusterIP
+```
+
+Apply with:
+```bash
+kubectl apply -f deployment.yaml
+kubectl apply -f service.yaml
+```
+
+---
+
+## Production Deployment
+
+### Security Checklist
+
+- [ ] Use strong database passwords
+- [ ] Enable SSL/TLS for all connections
+- [ ] Store secrets in Kubernetes Secrets or Vault
+- [ ] Enable Docker content trust
+- [ ] Run containers as non-root user
+- [ ] Configure firewall rules
+- [ ] Enable audit logging
+- [ ] Set up backup strategy
+
+### Production Docker Compose
 
 ```yaml
 version: '3.8'
 
 services:
-  api:
-    build: .
-    ports:
-      - "8000:8000"
+  postgres:
+    image: postgres:14-alpine
+    restart: unless-stopped
     environment:
-      - ENV=production
+      POSTGRES_USER: aifos
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: aifos
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - aifos_network
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
+    volumes:
+      - redis_data:/data
+    networks:
+      - aifos_network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+
+  backend:
+    build: .
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://aifos:${DB_PASSWORD}@postgres:5432/aifos
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379
       - LOG_LEVEL=INFO
-      - DB_PATH=/data/ai_founder_os.db      - ./data
-    volumes:
-:/data
-      - ./configs:/configs
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/api/status"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - aifos_network
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
 
-  # Optional: Ollama for local models
-  ollama:
-    image: ollama/ollama:latest
+  nginx:
+    image: nginx:alpine
+    restart: unless-stopped
     ports:
-      - "11434:11434"
+      - "80:80"
+      - "443:443"
     volumes:
-      - ollama_data:/root/.ollama
-    restart: unless-stopped
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - backend
+      - frontend
+    networks:
+      - aifos_network
 
-volumes:
-  ollama_data:
+networks:
+  aifos_network:
+    driver: bridge
 ```
 
-### Build and Run
+### SSL/TLS Setup
 
+Generate SSL certificates:
 ```bash
-# Build the image
-docker build -t ai-founder-os:latest .
+# Using Let's Encrypt
+certbot certonly --webroot -w /var/www/html -d yourdomain.com
 
-# Run the container
-docker run -d \
-  --name ai-founder-os \
-  -p 8000:8000 \
-  -v ./data:/data \
-  -e ENV=production \
-  ai-founder-os:latest
+# Or self-signed for testing
+openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+  -keyout ssl/server.key -out ssl/server.crt
 ```
 
-## Environment Configuration
-
-### Environment Variables
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `ENV` | Environment (development/production) | `development` |
-| `LOG_LEVEL` | Logging level | `INFO` |
-| `DB_PATH` | Path to SQLite database | `./data/ai_founder_os.db` |
-| `API_HOST` | API host | `0.0.0.0` |
-| `API_PORT` | API port | `8000` |
-| `CONNECTION_CONFIG` | Path to connection config | `./configs/connections.json` |
-| `SKILLS_PATH` | Path to skills directory | `./skills` |
-
-### Connection Configuration
-
-Create a `configs/connections.json` file:
-
-```json
-{
-  "routing_rules": {
-    "builder": {
-      "primary": "local_ollama:deepseek-8b",
-      "fallback": "cloud_openai:gpt-4",
-      "retry_on_failure": true
-    },
-    "researcher": {
-      "primary": "brave_search",
-      "fallback": "cloud_anthropic:claude-3",
-      "retry_on_failure": true
+Nginx configuration:
+```nginx
+server {
+    listen 443 ssl;
+    server_name yourdomain.com;
+    
+    ssl_certificate /etc/nginx/ssl/server.crt;
+    ssl_certificate_key /etc/nginx/ssl/server.key;
+    
+    location / {
+        proxy_pass http://frontend:3000;
     }
-  },
-  "budget_rules": {
-    "default_daily_limit": "10usd",
-    "warning_threshold": 0.8,
-    "hard_limit_action": "pause_all_tasks"
-  }
+    
+    location /api {
+        proxy_pass http://backend:8000;
+    }
 }
 ```
 
-### Managing API Keys
-
-**Never commit API keys to version control!**
-
-Use environment variables or a secrets manager:
-
-```python
-import os
-
-# Read from environment
-openai_key = os.environ.get("OPENAI_API_KEY")
-if not openai_key:
-    raise ValueError("OPENAI_API_KEY not set")
-```
-
-In Docker:
-
-```bash
-docker run -d \
-  -e OPENAI_API_KEY=sk-... \
-  -e ANTHROPIC_API_KEY=sk-ant-... \
-  ai-founder-os:latest
-```
-
-## Deployment Options
-
-### Local Development
-
-```bash
-# Install dependencies
-pip install -r requirements-dev.txt
-
-# Run tests
-pytest tests/ -v
-
-# Start development server
-python -m src.dashboard.api
-```
-
-### Production Deployment
-
-1. **Using Docker Swarm**:
-
-```bash
-docker stack deploy -c docker-compose.yml ai-founder-os
-```
-
-2. **Using Kubernetes** (advanced):
-
-See `k8s/` directory for Kubernetes manifests.
-
-### Security Considerations
-
-- **Never expose secrets** in Dockerfiles or config files
-- Use Docker secrets or Kubernetes secrets for sensitive data
-- Run containers as non-root user
-- Enable HTTPS in production
-- Use a reverse proxy (nginx, traefik) for SSL termination
-
-```yaml
-# Example with Traefik
-services:
-  api:
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.api.rule=PathPrefix(`/api`)"
-      - "traefik.http.routers.api.tls=true"
-```
+---
 
 ## Monitoring
 
-### Health Check
+### Health Checks
 
-```bash
-# Check API health
-curl http://localhost:8000/api/status
+```python
+# Add to your FastAPI app
+from fastapi import FastAPI
+from fastapi.responses import JSONResponse
 
-# Check Docker health
-docker inspect --format='{{.State.Health.Status}}' ai-founder-os
+app = FastAPI()
+
+@app.get("/health")
+def health_check():
+    return {"status": "healthy"}
+
+@app.get("/ready")
+def readiness_check():
+    # Check database and Redis
+    return {"status": "ready"}
 ```
 
-### Logs
+### Prometheus Metrics
 
-```bash
-# View API logs
-docker logs ai-founder-os
+Add metrics endpoint:
 
-# Follow logs
-docker logs -f ai-founder-os
+```python
+from fastapi import Response
+import prometheus_client
+
+@app.get("/metrics")
+def metrics():
+    return Response(
+        prometheus_client.generate_latest(),
+        media_type="text/plain"
+    )
 ```
 
-### Metrics
+### Logging
 
-The API exposes Prometheus-compatible metrics at `/api/metrics`:
+Configure structured logging:
 
-```bash
-curl http://localhost:8000/api/metrics
+```python
+import logging
+import json
+from datetime import datetime
+
+class JSONFormatter(logging.Formatter):
+    def format(self, record):
+        log_data = {
+            "timestamp": datetime.utcnow().isoformat(),
+            "level": record.levelname,
+            "message": record.getMessage(),
+            "module": record.module
+        }
+        if record.exc_info:
+            log_data["exception"] = self.formatException(record.exc_info)
+        return json.dumps(log_data)
 ```
+
+---
 
 ## Troubleshooting
 
-### Container Won't Start
+### Common Issues
+
+#### Database Connection Failed
 
 ```bash
-# Check logs
-docker logs ai-founder-os
+# Check database logs
+docker-compose logs postgres
 
-# Verify environment variables
-docker exec ai-founder-os env
+# Test connection
+docker-compose exec postgres pg_isready -U aifos
+
+# Check network
+docker network ls
+docker network inspect aifos_network
 ```
 
-### Database Issues
+#### Redis Connection Issues
 
 ```bash
-# Reset database
-rm -rf ./data/ai_founder_os.db
-docker restart ai-founder-os
+# Check Redis
+docker-compose exec redis redis-cli ping
+
+# View Redis logs
+docker-compose logs redis
 ```
 
-### Connection Problems
-
-1. Verify Ollama is running: `curl http://localhost:11434`
-2. Check API keys are set: `echo $OPENAI_API_KEY`
-3. Review connection manager logs
-
-## Backup and Restore
-
-### Backup
+#### Worker Not Starting
 
 ```bash
-# Backup database and configs
-tar -czf backup.tar.gz ./data ./configs
+# Check environment variables
+docker-compose exec backend env | grep -i
+
+# View backend logs
+docker-compose logs backend
+
+# Restart service
+docker-compose restart backend
 ```
 
-### Restore
+### Debugging Commands
 
 ```bash
-# Stop services
-docker-compose down
+# Enter container shell
+docker exec -it aifos_backend_1 /bin/bash
 
-# Restore files
-tar -xzf backup.tar.gz
+# View real-time logs
+docker-compose logs -f --tail=100
 
-# Restart services
-docker-compose up -d
+# Check resource usage
+docker stats
+
+# Inspect network
+docker network inspect aifos_aifos_network
+
+# Rebuild without cache
+docker-compose build --no-cache
 ```
 
-## CI/CD Integration
-
-See `.github/workflows/` for GitHub Actions configuration.
+### Performance Tuning
 
 ```yaml
-# Example production deployment
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Build and push
-        run: |
-          docker build -t ai-founder-os:${{ github.sha }} .
-          docker push registry/ai-founder-os:${{ github.sha }}
-      
-      - name: Deploy to production
-        run: |
-          kubectl set image deployment/api api=registry/ai-founder-os:${{ github.sha }}
+# docker-compose.yml adjustments
+services:
+  backend:
+    environment:
+      - UVICORN_WORKERS=4
+      - UVICORN_LIMIT_CONNS=1000
+      - DATABASE_POOL_SIZE=20
 ```
+
+---
+
+## Backup and Recovery
+
+### Database Backup
+
+```bash
+# Create backup
+docker-compose exec postgres pg_dump -U aifos aifos > backup_$(date +%Y%m%d).sql
+
+# Restore from backup
+docker-compose exec -T postgres psql -U aifos aifos < backup_20240101.sql
+```
+
+### Automated Backups
+
+```bash
+# crontab entry
+0 2 * * * docker-compose exec postgres pg_dump -U aifos aifos | gzip > /backups/aifos_$(date +\%Y\%m\%d).sql.gz
+```
+
+---
+
+## Scaling
+
+### Horizontal Scaling
+
+```bash
+# Scale backend instances
+docker-compose up -d --scale backend=3
+```
+
+### Load Balancing
+
+Use nginx for load balancing across multiple backend instances.
+
+---
+
+## Support
+
+For issues and questions:
+- GitHub Issues: https://github.com/your-org/ai-founder-os/issues
+- Documentation: https://docs.aifounderos.io
+- Discord: https://discord.gg/aifounderos
