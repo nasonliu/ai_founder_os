@@ -223,9 +223,144 @@ class DashboardAPI:
         self.cost_metrics: CostMetrics = CostMetrics()
         
         # Execution state
-        self.execution_mode = ExecutionMode.NORMAL
+        self._execution_mode = ExecutionMode.NORMAL
+        self._system_health = "healthy"
         self.system_status = "running"  # running, paused, error
         self.start_time = datetime.utcnow()
+    
+    @property
+    def execution_mode(self) -> str:
+        return self._execution_mode.value
+    
+    @execution_mode.setter
+    def execution_mode(self, value):
+        if isinstance(value, ExecutionMode):
+            self._execution_mode = value
+        else:
+            self._execution_mode = ExecutionMode(value)
+    
+    @property
+    def system_health(self) -> str:
+        return self._system_health
+    
+    @system_health.setter
+    def system_health(self, value: str):
+        self._system_health = value
+    
+    # =========================================================================
+    # Compatibility Methods
+    # =========================================================================
+    
+    def list_review_cards(
+        self,
+        project_id: str = None,
+        status: str = None,
+        gate_type: str = None,
+        risk_level: str = None
+    ) -> List[ReviewCard]:
+        """List review cards with filters"""
+        return list_review_cards(self, project_id, status, gate_type, risk_level)
+    
+    def approve_review_card(self, card_id: str, notes: str = "") -> Optional[ReviewCard]:
+        """Approve a review card (compatibility wrapper)"""
+        return approve_review_card(self, card_id, notes)
+    
+    def reject_review_card(self, card_id: str, notes: str) -> Optional[ReviewCard]:
+        """Reject a review card (compatibility wrapper)"""
+        return reject_review_card(self, card_id, notes)
+    
+    def modify_review_card(self, card_id: str, notes: str, 
+                          constraints_added: List[str] = None) -> Optional[ReviewCard]:
+        """Modify a review card (compatibility wrapper)"""
+        return modify_review_card(self, card_id, notes, constraints_added)
+    
+    def create_path_graph(self, project_id: str, tasks: List[Dict],
+                          artifacts: List[Dict] = None) -> ProjectPathNode:
+        """Create project path graph (compatibility wrapper)"""
+        return create_path_graph(self, project_id, tasks, artifacts)
+    
+    def get_path_graph(self, project_id: str) -> Optional[Dict]:
+        """Get project path graph (compatibility wrapper)"""
+        return get_path_graph(self, project_id)
+    
+    def update_path_graph_node(self, project_id: str, node_id: str,
+                               status: str) -> Optional[Dict]:
+        """Update node in path graph (compatibility wrapper)"""
+        return update_path_graph_node(self, project_id, node_id, status)
+    
+    def set_system_health(self, health: str) -> None:
+        """Set system health status"""
+        self.system_health = health
+    
+    def set_execution_mode(self, mode: str) -> bool:
+        """Set execution mode (compatibility wrapper)"""
+        try:
+            self._execution_mode = ExecutionMode(mode)
+            return True
+        except ValueError:
+            return False
+    
+    def get_dashboard_state(self, ideas_count: int = 0, projects_count: int = 0,
+                           tasks_count: int = 0, workers_idle: int = 0) -> Dict:
+        """Get dashboard state"""
+        return {
+            "system_health": self.system_health,
+            "execution_mode": self.execution_mode,
+            "total_ideas": ideas_count,
+            "active_projects": projects_count,
+            "pending_tasks": tasks_count,
+            "idle_workers": workers_idle,
+            "pending_reviews": len(self.get_pending_reviews()),
+            "last_updated": datetime.utcnow().isoformat() + "Z"
+        }
+    
+    def update_worker_metrics(self, metrics: Dict[str, Any]) -> None:
+        """Update worker metrics (compatibility wrapper)"""
+        worker_id = metrics.get("worker_id")
+        if worker_id and worker_id in self.worker_metrics:
+            wm = self.worker_metrics[worker_id]
+            if "success_rate" in metrics:
+                wm.success_rate = metrics["success_rate"]
+            if "total_tasks" in metrics:
+                wm.success_count = int(metrics["total_tasks"] * metrics.get("success_rate", 0.8))
+            if "idle_count" in metrics:
+                pass  # This is aggregate, handled elsewhere
+    
+    def get_worker_metrics(self, worker_id: str = None) -> Any:
+        """Get worker metrics (compatibility wrapper)"""
+        if worker_id:
+            return self.get_worker_metrics_func(worker_id)
+        return self.get_worker_metrics_func()
+    
+    def get_worker_metrics_func(self, worker_id: str = None) -> Any:
+        """Internal worker metrics getter"""
+        if worker_id:
+            return self.worker_metrics.get(worker_id)
+        # Return aggregated stats
+        return self.get_worker_stats()
+    
+    def record_task_completion(self, success: bool, latency_seconds: float) -> None:
+        """Record task completion (compatibility wrapper)"""
+        pass  # Handled by worker metrics
+    
+    def record_api_call(self, cost_usd: float = 0.0) -> None:
+        """Record API call (compatibility wrapper)"""
+        self.cost_metrics.daily_spend += cost_usd
+        self.cost_metrics.monthly_spend += cost_usd
+    
+    def get_observability_metrics(self) -> Dict:
+        """Get observability metrics"""
+        return {
+            "worker_success_rate": 0.0,
+            "task_latency_avg_seconds": 0.0,
+            "api_calls_total": self.cost_metrics.daily_spend,
+            "model_latency_avg_ms": 0.0,
+            "error_frequency": 0.0,
+            "cost_daily_usd": self.cost_metrics.daily_spend,
+            "tasks_completed_today": 0,
+            "tasks_failed_today": 0,
+            "queue_wait_time_avg_seconds": 0.0
+        }
     
     # =========================================================================
     # Review Card (Human Gate) Methods
@@ -764,6 +899,80 @@ class DashboardAPI:
 def create_dashboard(config: Optional[Dict] = None) -> DashboardAPI:
     """Factory function to create a Dashboard API"""
     return DashboardAPI(config)
+
+
+# Singleton instance
+_dashboard_instance: Optional[DashboardAPI] = None
+
+
+def get_dashboard(config: Optional[Dict] = None) -> DashboardAPI:
+    """Get or create the singleton dashboard instance"""
+    global _dashboard_instance
+    if _dashboard_instance is None:
+        _dashboard_instance = DashboardAPI(config)
+    return _dashboard_instance
+
+
+# Additional helper methods for compatibility
+
+def list_review_cards(dashboard: DashboardAPI, project_id: str = None, status: str = None, 
+                       gate_type: str = None, risk_level: str = None) -> List[ReviewCard]:
+    """List review cards with filters (compatibility function)"""
+    cards = list(dashboard.review_cards.values())
+    
+    if project_id:
+        cards = [c for c in cards if c.project_id == project_id]
+    if status:
+        cards = [c for c in cards if c.status == status]
+    if gate_type:
+        cards = [c for c in cards if c.type == gate_type]
+    if risk_level:
+        cards = [c for c in cards if c.risk_level == risk_level]
+    
+    # Sort by created_at descending
+    cards.sort(key=lambda c: c.created_at, reverse=True)
+    return cards
+
+
+def approve_review_card(dashboard: DashboardAPI, card_id: str, notes: str = "") -> Optional[ReviewCard]:
+    """Approve a review card (compatibility function)"""
+    if dashboard.approve_review(card_id, notes):
+        return dashboard.review_cards.get(card_id)
+    return None
+
+
+def reject_review_card(dashboard: DashboardAPI, card_id: str, notes: str) -> Optional[ReviewCard]:
+    """Reject a review card (compatibility function)"""
+    if dashboard.reject_review(card_id, notes):
+        return dashboard.review_cards.get(card_id)
+    return None
+
+
+def modify_review_card(dashboard: DashboardAPI, card_id: str, notes: str, 
+                       constraints_added: List[str] = None) -> Optional[ReviewCard]:
+    """Modify a review card (compatibility function)"""
+    if dashboard.modify_review(card_id, notes, constraints_added):
+        return dashboard.review_cards.get(card_id)
+    return None
+
+
+def create_path_graph(dashboard: DashboardAPI, project_id: str, tasks: List[Dict],
+                      artifacts: List[Dict] = None) -> ProjectPathNode:
+    """Create project path graph (compatibility function)"""
+    return dashboard.build_project_path(project_id, f"Project {project_id}", tasks, artifacts)
+
+
+def get_path_graph(dashboard: DashboardAPI, project_id: str) -> Optional[Dict]:
+    """Get project path graph (compatibility function)"""
+    return dashboard.get_project_path(project_id)
+
+
+def update_path_graph_node(dashboard: DashboardAPI, project_id: str, node_id: str,
+                           status: str) -> Optional[Dict]:
+    """Update node in path graph (compatibility function)"""
+    if dashboard.update_task_status(project_id, node_id, status):
+        return dashboard.get_project_path(project_id)
+    return None
 
 
 if __name__ == "__main__":

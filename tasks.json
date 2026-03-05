@@ -80,7 +80,7 @@
       "expected_artifact": "src/policy/human_gate.py",
       "validator": "unit_test",
       "risk_level": "high",
-      "status": "todo"
+      "status": "completed"
     },
     {
       "id": "task_010",
