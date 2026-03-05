@@ -62,7 +62,7 @@
       "expected_artifact": "src/skills/loader.py",
       "validator": "unit_test",
       "risk_level": "medium",
-      "status": "todo"
+      "status": "completed"
     },
     {
       "id": "task_008",

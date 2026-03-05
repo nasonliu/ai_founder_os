@@ -1,0 +1,131 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Skill Manifest Schema",
+  "description": "Schema for Skill Hub skill manifest",
+  "type": "object",
+  "required": ["name", "version", "author", "description", "entrypoints", "permissions", "runtime"],
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Skill name"
+    },
+    "version": {
+      "type": "string",
+      "description": "Skill version following semver",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+    },
+    "author": {
+      "type": "string",
+      "description": "Skill author"
+    },
+    "source": {
+      "type": "string",
+      "enum": ["openclaw_hub", "private", "local"],
+      "description": "Skill source location"
+    },
+    "description": {
+      "type": "string",
+      "description": "Skill description"
+    },
+    "entrypoints": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "Available action entrypoints"
+    },
+    "permissions": {
+      "type": "object",
+      "description": "Skill permissions",
+      "required": ["filesystem", "network", "secrets"],
+      "properties": {
+        "filesystem": {
+          "type": "object",
+          "properties": {
+            "read": {
+              "type": "array",
+              "items": {"type": "string"},
+              "description": "Allowed read paths"
+            },
+            "write": {
+              "type": "array",
+              "items": {"type": "string"},
+              "description": "Allowed write paths"
+            }
+          }
+        },
+        "network": {
+          "type": "object",
+          "properties": {
+            "allow_domains": {
+              "type": "array",
+              "items": {"type": "string"},
+              "description": "Allowed domains"
+            },
+            "deny_domains": {
+              "type": "array",
+              "items": {"type": "string"},
+              "description": "Denied domains"
+            }
+          }
+        },
+        "secrets": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "Required secret capability tokens"
+        },
+        "process": {
+          "type": "object",
+          "properties": {
+            "allow_commands": {
+              "type": "array",
+              "items": {"type": "string"},
+              "description": "Allowed shell commands"
+            }
+          }
+        }
+      }
+    },
+    "dependencies": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "Skill dependencies"
+    },
+    "runtime": {
+      "type": "string",
+      "enum": ["python", "node", "bash", "docker"],
+      "description": "Skill runtime"
+    },
+    "checks": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "Test commands to validate skill"
+    },
+    "signature": {
+      "type": "string",
+      "description": "Hash or signature for verification"
+    },
+    "quarantine": {
+      "type": "boolean",
+      "description": "Whether skill is in quarantine mode",
+      "default": true
+    },
+    "security_status": {
+      "type": "string",
+      "enum": ["pending", "approved", "rejected"],
+      "description": "Security audit status",
+      "default": "pending"
+    },
+    "tags": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "Skill tags for categorization"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}
