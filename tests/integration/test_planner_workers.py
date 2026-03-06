@@ -195,6 +195,7 @@ class TestPlannerWorkerFlow:
         
         # Complete
         registry.complete_task(worker.worker_id, resolution_time_minutes=10.0, success=True)
+        planner.complete_task(task.id, success=True)
         
         # Verify task completed
         task = planner.tasks[task.id]
