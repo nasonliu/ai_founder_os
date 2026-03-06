@@ -2,6 +2,12 @@
 
 > AI-Native 创业操作系统 - 让一个人拥有 AI 工程团队
 
+[![Tests](https://github.com/nasonliu/ai_founder_os/actions/workflows/test.yml/badge.svg)](https://github.com/nasonliu/ai_founder_os/actions)
+[![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://www.python.org/)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+
+> ⚡ 350 tests passing (100%)
+
 ## 概述
 
 AI Founder OS 是一个 AI-native 创业操作系统，目标不是提供 AI 工具，而是构建一个由 AI Worker 组成的工程组织。

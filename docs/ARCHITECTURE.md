@@ -1,5 +1,8 @@
 # AI Founder OS - Architecture Specification
 
+[![Tests](https://github.com/nasonliu/ai_founder_os/actions/workflows/test.yml/badge.svg)](https://github.com/nasonliu/ai_founder_os/actions)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+
 ## 1. Architecture Overview
 
 AI Founder OS 是一个多 agent orchestration 系统，核心思想是：
