@@ -204,12 +204,29 @@ function ReviewsPanel() {
 
 function IdeasPanel() {
   const [ideas, setIdeas] = useState<Idea[]>([])
+  const [showAdd, setShowAdd] = useState(false)
+  const [newIdea, setNewIdea] = useState({ title: '', description: '', tags: '' })
+  
   useEffect(() => { fetch('/api/ideas').then(r => r.json()).then(setIdeas).catch(() => setIdeas([])) }, [])
+  
+  const handleAdd = async () => {
+    if (!newIdea.title) return
+    await fetch('/api/ideas', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: newIdea.title, description: newIdea.description, tags: newIdea.tags.split(',').map(t => t.trim()).filter(Boolean) })
+    })
+    const res = await fetch('/api/ideas')
+    setIdeas(await res.json())
+    setShowAdd(false)
+    setNewIdea({ title: '', description: '', tags: '' })
+  }
+  
   const statusColors: Record<string, string> = { new: '#3b82f6', reviewing: '#eab308', approved: '#22c55e' }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between' }}><h2 style={{ fontSize: '18px', fontWeight: 'bold' }}>Ideas</h2><button style={{ background: '#2563eb', color: 'white', padding: '4px 10px', borderRadius: '4px', border: 'none' }}>+ New</button></div>
+      <div style={{ display: 'flex', justifyContent: 'space-between' }}><h2 style={{ fontSize: '18px', fontWeight: 'bold' }}>Ideas</h2><button onClick={() => setShowAdd(true)} style={{ background: '#2563eb', color: 'white', padding: '4px 10px', borderRadius: '4px', border: 'none' }}>+ New</button></div>
       {ideas.length === 0 ? <p style={{ color: '#6b7280', fontSize: '12px' }}>No ideas yet.</p> : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px' }}>
           {ideas.map((idea) => (<div key={idea.id} style={{ background: 'white', padding: '12px', borderRadius: '6px' }}>
@@ -219,26 +236,67 @@ function IdeasPanel() {
           </div>))}
         </div>
       )}
+      
+      {showAdd && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
+          <div style={{ background: 'white', padding: '20px', borderRadius: '10px', width: '350px' }}>
+            <h3 style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: '14px' }}>💡 Add New Idea</h3>
+            <div style={{ marginBottom: '10px' }}><label style={{ display: 'block', fontSize: '12px', fontWeight: '500', marginBottom: '4px' }}>Title</label><input value={newIdea.title} onChange={e => setNewIdea({...newIdea, title: e.target.value})} placeholder="Idea title" style={{ width: '100%', padding: '8px', border: '1px solid #e5e7eb', borderRadius: '4px', fontSize: '13px' }} /></div>
+            <div style={{ marginBottom: '10px' }}><label style={{ display: 'block', fontSize: '12px', fontWeight: '500', marginBottom: '4px' }}>Description</label><textarea value={newIdea.description} onChange={e => setNewIdea({...newIdea, description: e.target.value})} placeholder="Describe your idea" rows={3} style={{ width: '100%', padding: '8px', border: '1px solid #e5e7eb', borderRadius: '4px', fontSize: '13px', resize: 'vertical' }} /></div>
+            <div style={{ marginBottom: '14px' }}><label style={{ display: 'block', fontSize: '12px', fontWeight: '500', marginBottom: '4px' }}>Tags (comma separated)</label><input value={newIdea.tags} onChange={e => setNewIdea({...newIdea, tags: e.target.value})} placeholder="AI, automation, etc." style={{ width: '100%', padding: '8px', border: '1px solid #e5e7eb', borderRadius: '4px', fontSize: '13px' }} /></div>
+            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}><button onClick={() => setShowAdd(false)} style={{ padding: '8px 12px', borderRadius: '4px', border: '1px solid #e5e7eb', background: 'white', cursor: 'pointer' }}>Cancel</button><button onClick={handleAdd} style={{ padding: '8px 12px', borderRadius: '4px', border: 'none', background: '#2563eb', color: 'white', cursor: 'pointer' }}>Add</button></div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
 
 function APIsPanel() {
   const [connections, setConnections] = useState<Connection[]>([])
+  const [showAdd, setShowAdd] = useState(false)
+  const [newConn, setNewConn] = useState({ name: '', provider: '', apiKey: '' })
+  
   useEffect(() => { fetch('/api/connections').then(r => r.json()).then(setConnections).catch(() => setConnections([])) }, [])
+  
+  const handleAdd = async () => {
+    if (!newConn.name) return
+    await fetch('/api/connections', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: newConn.name, provider: newConn.provider, api_key: newConn.apiKey })
+    })
+    const res = await fetch('/api/connections')
+    setConnections(await res.json())
+    setShowAdd(false)
+    setNewConn({ name: '', provider: '', apiKey: '' })
+  }
+  
   const statusColors: Record<string, string> = { connected: '#22c55e', disconnected: '#9ca3af', error: '#ef4444' }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between' }}><h2 style={{ fontSize: '18px', fontWeight: 'bold' }}>API Connections</h2><button style={{ background: '#2563eb', color: 'white', padding: '4px 10px', borderRadius: '4px', border: 'none' }}>+ Add</button></div>
+      <div style={{ display: 'flex', justifyContent: 'space-between' }}><h2 style={{ fontSize: '18px', fontWeight: 'bold' }}>API Connections</h2><button onClick={() => setShowAdd(true)} style={{ background: '#2563eb', color: 'white', padding: '4px 10px', borderRadius: '4px', border: 'none' }}>+ Add</button></div>
       {connections.length === 0 ? <p style={{ color: '#6b7280', fontSize: '12px' }}>No API connections configured.</p> : (
         <div style={{ background: 'white', borderRadius: '6px', overflow: 'hidden' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead><tr style={{ background: '#f9fafb', borderBottom: '1px solid #e5e7eb' }}><th style={{ padding: '6px 10px', textAlign: 'left', color: '#6b7280', fontSize: '11px' }}>Name</th><th style={{ padding: '6px 10px', textAlign: 'left', color: '#6b7280', fontSize: '11px' }}>Status</th><th style={{ padding: '6px 10px', textAlign: 'left', color: '#6b7280', fontSize: '11px' }}>Calls</th></tr></thead>
+            <thead><tr style={{ background: '#f9fafb', borderBottom: '1px solid #e5e7eb' }}><th style={{ padding: '6px 10px', textAlign: 'left', color: '#6b7280', fontSize: '11px' }}>Name</th><th style={{ padding: '6px 10px', textAlign: 'left', color: '#6b7280', fontSize: '11px' }}>Provider</th><th style={{ padding: '6px 10px', textAlign: 'left', color: '#6b7280', fontSize: '11px' }}>Status</th><th style={{ padding: '6px 10px', textAlign: 'left', color: '#6b7280', fontSize: '11px' }}>Calls</th></tr></thead>
             <tbody>
-              {connections.map((c) => (<tr key={c.id} style={{ borderBottom: '1px solid #f3f4f6' }}><td style={{ padding: '6px 10px', fontWeight: '500', fontSize: '12px' }}>{c.name}</td><td style={{ padding: '6px 10px' }}><span style={{ padding: '2px 6px', borderRadius: '6px', fontSize: '10px', background: (statusColors[c.status] || '#9ca3af') + '20', color: statusColors[c.status] || '#9ca3af' }}>{c.status}</span></td><td style={{ padding: '6px 10px', color: '#6b7280', fontSize: '12px' }}>{c.calls}</td></tr>))}
+              {connections.map((c) => (<tr key={c.id} style={{ borderBottom: '1px solid #f3f4f6' }}><td style={{ padding: '6px 10px', fontWeight: '500', fontSize: '12px' }}>{c.name}</td><td style={{ padding: '6px 10px', color: '#6b7280', fontSize: '12px' }}>{c.provider}</td><td style={{ padding: '6px 10px' }}><span style={{ padding: '2px 6px', borderRadius: '6px', fontSize: '10px', background: (statusColors[c.status] || '#9ca3af') + '20', color: statusColors[c.status] || '#9ca3af' }}>{c.status}</span></td><td style={{ padding: '6px 10px', color: '#6b7280', fontSize: '12px' }}>{c.calls}</td></tr>))}
             </tbody>
           </table>
+        </div>
+      )}
+      
+      {showAdd && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
+          <div style={{ background: 'white', padding: '20px', borderRadius: '10px', width: '350px' }}>
+            <h3 style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: '14px' }}>➕ Add API Connection</h3>
+            <div style={{ marginBottom: '10px' }}><label style={{ display: 'block', fontSize: '12px', fontWeight: '500', marginBottom: '4px' }}>Name</label><input value={newConn.name} onChange={e => setNewConn({...newConn, name: e.target.value})} placeholder="e.g., OpenAI" style={{ width: '100%', padding: '8px', border: '1px solid #e5e7eb', borderRadius: '4px', fontSize: '13px' }} /></div>
+            <div style={{ marginBottom: '10px' }}><label style={{ display: 'block', fontSize: '12px', fontWeight: '500', marginBottom: '4px' }}>Provider</label><select value={newConn.provider} onChange={e => setNewConn({...newConn, provider: e.target.value})} style={{ width: '100%', padding: '8px', border: '1px solid #e5e7eb', borderRadius: '4px', fontSize: '13px' }}><option value="">Select provider</option><option value="openai">OpenAI</option><option value="anthropic">Anthropic</option><option value="deepseek">DeepSeek</option><option value="github">GitHub</option></select></div>
+            <div style={{ marginBottom: '14px' }}><label style={{ display: 'block', fontSize: '12px', fontWeight: '500', marginBottom: '4px' }}>API Key</label><input type="password" value={newConn.apiKey} onChange={e => setNewConn({...newConn, apiKey: e.target.value})} placeholder="sk-..." style={{ width: '100%', padding: '8px', border: '1px solid #e5e7eb', borderRadius: '4px', fontSize: '13px' }} /></div>
+            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}><button onClick={() => setShowAdd(false)} style={{ padding: '8px 12px', borderRadius: '4px', border: '1px solid #e5e7eb', background: 'white', cursor: 'pointer' }}>Cancel</button><button onClick={handleAdd} style={{ padding: '8px 12px', borderRadius: '4px', border: 'none', background: '#2563eb', color: 'white', cursor: 'pointer' }}>Add</button></div>
+          </div>
         </div>
       )}
     </div>
@@ -303,12 +361,33 @@ function ConsolePanel() {
 }
 
 function SoulsPanel() {
-  const [souls, setSouls] = useState<SoulConfig[]>(defaultSouls)
+  const [souls, setSouls] = useState<SoulConfig[]>([])
   const [selectedSoul, setSelectedSoul] = useState<SoulConfig | null>(null)
   const [editForm, setEditForm] = useState({ coreTruths: '', boundaries: '', vibe: '', emoji: '' })
 
+  useEffect(() => { fetch('/api/souls').then(r => r.json()).then(setSouls).catch(() => setSouls([])) }, [])
+
   const openEdit = (soul: SoulConfig) => { setSelectedSoul(soul); setEditForm({ coreTruths: soul.coreTruths, boundaries: soul.boundaries, vibe: soul.vibe, emoji: soul.emoji }) }
-  const saveSoul = () => { if (selectedSoul) { setSouls(souls.map(s => s.id === selectedSoul.id ? { ...s, ...editForm } : s)); alert('Soul saved!'); setSelectedSoul(null) } }
+  
+  const saveSoul = async () => { 
+    if (selectedSoul) {
+      await fetch(`/api/souls/${selectedSoul.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...editForm, name: selectedSoul.name })
+      })
+      const res = await fetch('/api/souls')
+      setSouls(await res.json())
+      alert('Soul saved!')
+      setSelectedSoul(null) 
+    } 
+  }
+
+  const resetSoul = async (id: string) => {
+    await fetch(`/api/souls/${id}/reset`, { method: 'POST' })
+    const res = await fetch('/api/souls')
+    setSouls(await res.json())
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>

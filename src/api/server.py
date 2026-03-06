@@ -9,6 +9,12 @@ import uuid
 from datetime import datetime
 from typing import Dict, List, Optional, Any
 from contextlib import asynccontextmanager
+import sys
+from pathlib import Path
+
+# Add parent to path for storage module
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from storage import Storage, DEFAULT_SOULS
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
@@ -571,6 +577,74 @@ def set_execution_mode(mode: str) -> Dict:
     
     db.execution_mode = mode
     return {"execution_mode": mode}
+
+
+# ============================================================================
+# Souls API - Personality Configuration
+# ============================================================================
+
+@app.get("/api/souls", response_model=List[Dict])
+def list_souls():
+    """List all soul configurations"""
+    return [{"id": sid, **Storage.load_soul(sid)} for sid in Storage.list_souls()]
+
+
+@app.get("/api/souls/{soul_id}", response_model=Dict)
+def get_soul(soul_id: str):
+    """Get a specific soul configuration"""
+    soul = Storage.load_soul(soul_id)
+    if not soul:
+        # Return default if not found
+        soul = DEFAULT_SOULS.get(soul_id, {"name": soul_id, "emoji": "🤖", "coreTruths": "", "boundaries": "", "vibe": ""})
+    return {"id": soul_id, **soul}
+
+
+@app.put("/api/souls/{soul_id}", response_model=Dict)
+def update_soul(soul_id: str, data: Dict):
+    """Update a soul configuration"""
+    Storage.save_soul(soul_id, data)
+    return {"id": soul_id, **data}
+
+
+@app.post("/api/souls/{soul_id}/reset", response_model=Dict)
+def reset_soul(soul_id: str):
+    """Reset a soul to default"""
+    default = DEFAULT_SOULS.get(soul_id, {})
+    Storage.save_soul(soul_id, default)
+    return {"id": soul_id, **default}
+
+
+# ============================================================================
+# Memory API - Daily Logs
+# ============================================================================
+
+@app.get("/api/memories", response_model=List[str])
+def list_memories():
+    """List all memory dates"""
+    return Storage.list_memories()
+
+
+@app.get("/api/memories/{date}", response_model=Dict)
+def get_memory(date: str):
+    """Get memory for a specific date"""
+    content = Storage.load_memory(date)
+    return {"date": date, "content": content or ""}
+
+
+@app.put("/api/memories/{date}", response_model=Dict)
+def save_memory(date: str, data: Dict):
+    """Save memory for a specific date"""
+    Storage.save_memory(date, data.get("content", ""))
+    return {"date": date, "saved": True}
+
+
+# ============================================================================
+# Initialize Storage
+# ============================================================================
+
+# Initialize default souls on startup
+from storage import init_default_souls
+init_default_souls()
 
 
 # ============================================================================
