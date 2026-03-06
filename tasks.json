@@ -72,6 +72,15 @@
       "validator": "pytest",
       "risk_level": "low",
       "status": "completed"
+    },
+    {
+      "id": "task_019",
+      "title": "Sync Roadmap with Completed Tasks",
+      "goal": "Update roadmap.md to reflect completed phases (Phases 6-9) that had unchecked items despite tasks being marked done in tasks.json",
+      "expected_artifact": "roadmap.md",
+      "validator": "manual_review",
+      "risk_level": "low",
+      "status": "completed"
     }
   ]
 }
