@@ -56,3 +56,7 @@ Thumbs.db
 *password*
 *.key
 credentials.json
+
+# Frontend
+frontend/node_modules/
+frontend/package-lock.json
