@@ -1,6 +1,5 @@
 """
 AI Provider Configuration
-
 Defines available AI providers and their models.
 """
 
@@ -39,21 +38,19 @@ PROVIDERS = {
         ]
     },
     "alibaba": {
-        "name": "阿里百炼 (Alibaba)",
+        "name": "Alibaba (Qwen)",
         "models": [
             {"id": "qwen-turbo", "name": "Qwen Turbo", "context": 1000000, "price": "¥1/1M"},
             {"id": "qwen-plus", "name": "Qwen Plus", "context": 32000, "price": "¥4/1M"},
             {"id": "qwen-max", "name": "Qwen Max", "context": 8000, "price": "¥20/1M"},
-            {"id": "qwen-max-longcontext", "name": "Qwen Max (长文本)", "context": 100k, "price": "¥20/1M"},
         ]
     },
     "zhipu": {
-        "name": "智谱AI (Zhipu)",
+        "name": "Zhipu AI",
         "models": [
             {"id": "glm-4", "name": "GLM-4", "context": 128000, "price": "¥1/1M"},
             {"id": "glm-4-flash", "name": "GLM-4 Flash", "context": 128000, "price": "¥0.1/1M"},
             {"id": "glm-4-plus", "name": "GLM-4 Plus", "context": 128000, "price": "¥5/1M"},
-            {"id": "glm-3-turbo", "name": "GLM-3 Turbo", "context": 128000, "price": "¥0.1/1M"},
         ]
     },
     "openrouter": {
@@ -62,7 +59,6 @@ PROVIDERS = {
             {"id": "anthropic/claude-3.5-sonnet", "name": "Claude 3.5 Sonnet", "context": 200000, "price": "$3/1M"},
             {"id": "google/gemini-pro-1.5", "name": "Gemini Pro 1.5", "context": 1000000, "price": "$1.25/1M"},
             {"id": "meta-llama-3.1-405b-instruct", "name": "Llama 3.1 405B", "context": 128000, "price": "$3.5/1M"},
-            {"id": "mistralai/mixtral-8x22b", "name": "Mixtral 8x22B", "context": 64000, "price": "$1.2/1M"},
         ]
     },
     "github": {
@@ -80,15 +76,8 @@ PROVIDERS = {
     }
 }
 
-
-def get_provider(provider_id: str) -> dict:
-    """Get provider configuration"""
+def get_provider(provider_id):
     return PROVIDERS.get(provider_id, {"name": provider_id, "models": []})
 
-
-def list_providers() -> list:
-    """List all available providers"""
-    return [
-        {"id": pid, "name": info["name"], "model_count": len(info["models"])}
-        for pid, info in PROVIDERS.items()
-    ]
+def list_providers():
+    return [{"id": pid, "name": info["name"], "model_count": len(info["models"])} for pid, info in PROVIDERS.items()]

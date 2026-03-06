@@ -1,443 +1,248 @@
 import { useState, useEffect, useRef } from 'react'
 
-// Types
 interface Idea { id: string; title: string; description: string; tags: string[]; priority: string; status: string; created: string }
-interface Project { id: string; name: string; status: string; progress: number; tasks: number }
+interface Project { id: string; name: string; status: string; progress: number; tasks: number; description?: string }
 interface Worker { id: string; name: string; type: string; status: string; xp: number }
 interface Task { id: string; title: string; project: string; status: string; priority: string }
 interface Review { id: string; title: string; type: string; status: string; requester: string }
-interface Connection { id: string; name: string; provider: string; status: string; calls: number }
+interface Connection { id: string; name: string; provider: string; model: string; status: string; calls: number }
 interface SoulConfig { id: string; name: string; coreTruths: string; boundaries: string; vibe: string; emoji: string }
-
-const API_BASE = '' // Empty means relative to current origin
-
-const defaultSouls: SoulConfig[] = [
-  { id: 'planner', name: 'Planner', emoji: '🧠', coreTruths: 'Be genuinely helpful. Have opinions. Be resourceful before asking.', boundaries: 'Private things stay private. When in doubt, ask.', vibe: 'Concise when needed, thorough when it matters.' },
-  { id: 'builder', name: 'Builder', emoji: '🔨', coreTruths: 'Write clean code. Prioritize simplicity. Test everything.', boundaries: 'Never commit secrets. Validate inputs.', vibe: 'Get it done, get it right.' },
-  { id: 'researcher', name: 'Researcher', emoji: '🔍', coreTruths: 'Find the truth. Verify sources. Stay objective.', boundaries: 'Cite sources. Don\'t make things up.', vibe: 'Thorough, accurate, skeptical.' },
-  { id: 'verifier', name: 'Verifier', emoji: '✅', coreTruths: 'Test rigor prevents bugs. Challenge assumptions.', boundaries: 'Don\'t approve weak code. Be firm.', vibe: 'Quality over speed.' },
-  { id: 'documenter', name: 'Documenter', emoji: '📝', coreTruths: 'Clear documentation saves time. Write for humans.', boundaries: 'Keep docs in sync. Less is more.', vibe: 'Clarity is king.' },
-  { id: 'evaluator', name: 'Evaluator', emoji: '📊', coreTruths: 'Data drives decisions. Measure what matters.', boundaries: 'Don\'t manipulate metrics. Report honestly.', vibe: 'Objective, metrics-driven.' },
-]
 
 type TabId = 'overview' | 'projects' | 'workers' | 'tasks' | 'reviews' | 'ideas' | 'apis' | 'routes' | 'console' | 'souls' | 'settings'
 
-export default function App() {
-  const [activeTab, setActiveTab] = useState<TabId>('overview')
+const c = { primary: '#7C9A92', bg: '#F5F2ED', surface: '#FFFFFF', text: '#4A4A4A', textLight: '#8A8A8A', success: '#8BA888', warning: '#D4B896', error: '#C49A9A', border: '#E8E4DF', secondary: '#B4A396' }
+
+function App() {
+  const [tab, setTab] = useState<TabId>('overview')
   const tabs = [
-    { id: 'overview', label: 'Overview' }, { id: 'projects', label: 'Projects' }, { id: 'workers', label: 'Workers' },
-    { id: 'tasks', label: 'Tasks' }, { id: 'reviews', label: 'Reviews' }, { id: 'ideas', label: 'Ideas' },
-    { id: 'apis', label: 'APIs' }, { id: 'routes', label: 'Routes' }, { id: 'console', label: 'Console' },
-    { id: 'souls', label: 'Souls' }, { id: 'settings', label: 'Settings' },
+    {id:'overview',l:'Overview',i:'◈'}, {id:'projects',l:'Projects',i:'◇'}, {id:'workers',l:'Workers',i:'◉'},
+    {id:'tasks',l:'Tasks',i:'✓'}, {id:'reviews',l:'Reviews',i:'⚡'}, {id:'ideas',l:'Ideas',i:'💡'},
+    {id:'apis',l:'APIs',i:'⚙'}, {id:'routes',l:'Routes',i:'↝'}, {id:'console',l:'Console',i:'▸'},
+    {id:'souls',l:'Souls',i:'◇'}, {id:'settings',l:'Settings',i:'⚙'},
   ]
-
-  const renderContent = () => {
-    switch (activeTab) {
-      case 'overview': return <OverviewPanel />
-      case 'projects': return <ProjectsPanel />
-      case 'workers': return <WorkersPanel />
-      case 'tasks': return <TasksPanel />
-      case 'reviews': return <ReviewsPanel />
-      case 'ideas': return <IdeasPanel />
-      case 'apis': return <APIsPanel />
-      case 'routes': return <RoutesPanel />
-      case 'console': return <ConsolePanel />
-      case 'souls': return <SoulsPanel />
-      case 'settings': return <SettingsPanel />
-      default: return <OverviewPanel />
-    }
-  }
-
   return (
-    <div style={{ display: 'flex', height: '100vh', background: '#f9fafb' }}>
-      <aside style={{ width: '180px', background: 'white', borderRight: '1px solid #e5e7eb', padding: '12px' }}>
-        <h1 style={{ fontSize: '14px', fontWeight: 'bold', marginBottom: '2px' }}>AI Founder OS</h1>
-        <p style={{ fontSize: '10px', color: '#6b7280', marginBottom: '12px' }}>Dashboard</p>
-        <nav style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-          {tabs.map((tab) => (
-            <button key={tab.id} onClick={() => setActiveTab(tab.id as TabId)}
-              style={{ padding: '8px 10px', borderRadius: '4px', textAlign: 'left', background: activeTab === tab.id ? '#2563eb' : 'transparent',
-                color: activeTab === tab.id ? 'white' : '#374151', border: 'none', cursor: 'pointer', fontSize: '12px' }}>{tab.label}</button>
+    <div style={{display:'flex',height:'100vh',background:c.bg,fontFamily:'-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif'}}>
+      <aside style={{width:200,background:c.surface,borderRight:`1px solid ${c.border}`,padding:'24px 16px',display:'flex',flexDirection:'column'}}>
+        <h1 style={{fontSize:18,fontWeight:600,color:c.text,margin:'0 0 4px 0'}}>AI Founder OS</h1>
+        <p style={{fontSize:11,color:c.textLight,margin:'0 0 32px 0'}}>Dashboard</p>
+        <nav style={{display:'flex',flexDirection:'column',gap:4,flex:1}}>
+          {tabs.map(t => (
+            <button key={t.id} onClick={()=>setTab(t.id as TabId)}
+              style={{padding:'10px 14px',borderRadius:8,textAlign:'left',background:tab===t.id?c.primary+'20':'transparent',
+                color:tab===t.id?c.primary:c.textLight,border:'none',cursor:'pointer',fontSize:13,fontWeight:tab===t.id?500:400,
+                display:'flex',alignItems:'center',gap:10,transition:'all 0.2s'}}>
+              <span>{t.i}</span>{t.l}
+            </button>
           ))}
         </nav>
+        <div style={{fontSize:10,color:c.textLight,borderTop:`1px solid ${c.border}`,paddingTop:16}}>v1.0.0 · AI Founder OS</div>
       </aside>
-      <main style={{ flex: 1, overflow: 'auto', padding: '12px' }}>{renderContent()}</main>
+      <main style={{flex:1,overflow:'auto',padding:32}}>
+        {tab==='overview'&&<Overview/>} {tab==='projects'&&<Projects/>} {tab==='workers'&&<Workers/>}
+        {tab==='tasks'&&<Tasks/>} {tab==='reviews'&&<Reviews/>} {tab==='ideas'&&<Ideas/>}
+        {tab==='apis'&&<APIs/>} {tab==='routes'&&<Routes/>} {tab==='console'&&<Console/>}
+        {tab==='souls'&&<Souls/>} {tab==='settings'&&<Settings/>}
+      </main>
     </div>
   )
 }
 
-function OverviewPanel() {
-  const [stats, setStats] = useState({ projects: 0, workers: 0, reviews: 0, tasks: 0 })
-  
-  useEffect(() => {
-    Promise.all([
-      fetch('/api/projects').then(r => r.json()).then(d => d.length).catch(() => 0),
-      fetch('/api/workers').then(r => r.json()).then(d => d.length).catch(() => 0),
-      fetch('/api/reviews?status=pending').then(r => r.json()).then(d => d.length).catch(() => 0),
-      fetch('/api/tasks').then(r => r.json()).then(d => d.filter((t: any) => t.status === 'completed').length).catch(() => 0),
-    ]).then(([p, w, r, t]) => setStats({ projects: p, workers: w, reviews: r, tasks: t }))
-  }, [])
-
+function Overview() {
+  const [s, setS] = useState({p:0,w:0,r:0,t:0,i:0,a:0})
+  useEffect(()=>{Promise.all([
+    fetch('/api/projects').then(r=>r.json()).then(d=>(d||[]).length).catch(()=>0),
+    fetch('/api/workers').then(r=>r.json()).then(d=>(d||[]).length).catch(()=>0),
+    fetch('/api/reviews?status=pending').then(r=>r.json()).then(d=>(d||[]).length).catch(()=>0),
+    fetch('/api/tasks').then(r=>r.json()).then(d=>(d||[]).length).catch(()=>0),
+    fetch('/api/ideas').then(r=>r.json()).then(d=>(d||[]).length).catch(()=>0),
+    fetch('/api/connections').then(r=>r.json()).then(d=>(d||[]).length).catch(()=>0),
+  ]).then(([p,w,r,t,i,a])=>setS({p,w,r,t,i,a}))},[])
+  const cards = [{l:'Projects',v:s.p,i:'◇',col:c.primary},{l:'Workers',v:s.w,i:'◉',col:c.success},{l:'Reviews',v:s.r,i:'⚡',col:c.warning},{l:'Tasks',v:s.t,i:'✓',col:'#9DB4C0'},{l:'Ideas',v:s.i,i:'💡',col:c.error},{l:'APIs',v:s.a,i:'⚙',col:c.secondary}]
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-      <div><h2 style={{ fontSize: '18px', fontWeight: 'bold' }}>System Overview</h2></div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px' }}>
-        {[{ label: 'Projects', value: stats.projects, color: '#3b82f6' }, { label: 'Workers', value: stats.workers, color: '#22c55e' }, { label: 'Reviews', value: stats.reviews, color: '#eab308' }, { label: 'Completed', value: stats.tasks, color: '#a855f7' }].map((s) => (
-          <div key={s.label} style={{ background: 'white', padding: '12px', borderRadius: '6px' }}>
-            <div style={{ fontSize: '20px', fontWeight: 'bold', color: s.color }}>{s.value}</div>
-            <div style={{ fontSize: '11px', color: '#6b7280' }}>{s.label}</div>
-          </div>
-        ))}
+    <div style={{maxWidth:1200,gap:28,display:'flex',flexDirection:'column'}}>
+      <h2 style={{fontSize:24,fontWeight:600,color:c.text,margin:0}}>Dashboard</h2>
+      <p style={{fontSize:14,color:c.textLight,margin:0}}>Welcome back! Here's your system overview.</p>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(6,1fr)',gap:16}}>
+        {cards.map(x=>(<div key={x.l} style={{background:c.surface,padding:20,borderRadius:12,boxShadow:`0 2px 8px ${c.border}`}}>
+          <div style={{fontSize:24,marginBottom:12,color:x.col}}>{x.i}</div>
+          <div style={{fontSize:28,fontWeight:600,color:c.text}}>{x.v}</div>
+          <div style={{fontSize:12,color:c.textLight}}>{x.l}</div>
+        </div>))}
+      </div>
+      <div style={{display:'grid',gridTemplateColumns:'2fr 1fr',gap:20}}>
+        <div style={{background:c.surface,padding:24,borderRadius:12,boxShadow:`0 2px 8px ${c.border}`}}>
+          <h3 style={{fontSize:16,fontWeight:600,margin:'0 0 20px 0'}}>Quick Actions</h3>
+          {['New Project','New Task','Add Idea','Add API'].map(a=>(<button key={a} style={{width:'100%',padding:12,marginBottom:8,background:c.bg,border:'none',borderRadius:8,textAlign:'left',cursor:'pointer',fontSize:13,color:c.text}}>+ {a}</button>))}
+        </div>
+        <div style={{background:c.surface,padding:24,borderRadius:12,boxShadow:`0 2px 8px ${c.border}`}}>
+          <h3 style={{fontSize:16,fontWeight:600,margin:'0 0 20px 0'}}>System Status</h3>
+          {[{n:'Backend',s:'●'},{n:'API',s:'●'},{n:'Workers',s:'●'}].map(x=>(<div key={x.n} style={{display:'flex',justifyContent:'space-between',padding:'12px 0',borderBottom:`1px solid ${c.border}`}}><span style={{fontSize:13,color:c.text}}>{x.n}</span><span style={{fontSize:13,color:c.success}}>{x.s} Online</span></div>))}
+        </div>
       </div>
     </div>
   )
 }
 
-function ProjectsPanel() {
-  const [projects, setProjects] = useState<Project[]>([])
-
-  useEffect(() => { fetch('/api/projects').then(r => r.json()).then(setProjects).catch(() => setProjects([])) }, [])
-
+function Projects() {
+  const [p, setP] = useState<Project[]>([])
+  const [show, setShow] = useState(false)
+  const [n, setN] = useState({name:'',description:'',status:'active'})
+  useEffect(()=>{fetch('/api/projects').then(r=>r.json()).then(d=>setP(d||[])).catch(()=>[])},[])
+  const add = async () => {if(!n.name)return;await fetch('/api/projects',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(n)});setP(await fetch('/api/projects').then(r=>r.json()));setShow(false);setN({name:'',description:'',status:'active'})}
+  const sc = {active:c.success,paused:c.warning,completed:c.primary,archived:c.textLight}
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between' }}><h2 style={{ fontSize: '18px', fontWeight: 'bold' }}>Projects</h2><button style={{ background: '#2563eb', color: 'white', padding: '4px 10px', borderRadius: '4px', border: 'none' }}>+ New</button></div>
-      {projects.length === 0 ? <p style={{ color: '#6b7280', fontSize: '12px' }}>No projects yet. Create your first project!</p> : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px' }}>
-          {projects.map((p) => (
-            <div key={p.id} style={{ background: 'white', padding: '12px', borderRadius: '6px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}><span style={{ fontWeight: '600' }}>{p.name}</span><span style={{ padding: '2px 6px', borderRadius: '6px', fontSize: '10px', background: '#dcfce7', color: '#16a34a' }}>{p.status}</span></div>
-              <div style={{ height: '4px', background: '#e5e7eb', borderRadius: '2px' }}><div style={{ height: '100%', width: p.progress + '%', background: '#3b82f6', borderRadius: '2px' }} /></div>
-            </div>
-          ))}
-        </div>
-      )}
+    <div style={{maxWidth:1200,gap:24,display:'flex',flexDirection:'column'}}>
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+        <div><h2 style={{fontSize:24,fontWeight:600,margin:0}}>Projects</h2><p style={{fontSize:14,color:c.textLight,margin:0}}>Manage your projects</p></div>
+        <button onClick={()=>setShow(true)} style={{background:c.primary,color:'white',padding:'12px 20px',borderRadius:8,border:'none',cursor:'pointer',fontSize:13}}>+ New Project</button>
+      </div>
+      {p.length===0?<div style={{background:c.surface,padding:60,borderRadius:12,textAlign:'center'}}><div style={{fontSize:48,marginBottom:16}}>◇</div><p style={{color:c.textLight}}>No projects yet</p></div>:
+        <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:16}}>{p.map(x=>(<div key={x.id} style={{background:c.surface,padding:20,borderRadius:12,boxShadow:`0 2px 8px ${c.border}`}}>
+          <div style={{display:'flex',justifyContent:'space-between',marginBottom:12}}><h4 style={{fontSize:15,fontWeight:600,margin:0}}>{x.name}</h4><span style={{padding:'4px 10px',borderRadius:20,fontSize:11,background:sc[x.status]||c.textLight,color:'white'}}>{x.status}</span></div>
+          {x.description&&<p style={{fontSize:12,color:c.textLight,margin:'0 0 16px 0'}}>{x.description}</p>}
+          <div style={{display:'flex',justifyContent:'space-between'}}><span style={{fontSize:12,color:c.textLight}}>{x.tasks||0} tasks</span><div style={{width:100,height:6,background:c.border,borderRadius:3}}><div style={{width:x.progress+'%',height:'100%',background:c.primary,borderRadius:3}}/></div></div>
+        </div>))}</div>}
+      {show&&<M title="New Project" onClose={()=>setShow(false)} onSave={add} fields={[{l:'Name',v:n.name,onChange:(e:any)=>setN({...n,name:e.target.value})},{l:'Description',v:n.description,onChange:(e:any)=>setN({...n,description:e.target.value}),type:'textarea'}]}/>}
     </div>
   )
 }
 
-function WorkersPanel() {
-  const [workers, setWorkers] = useState<Worker[]>([])
-  const icons: Record<string, string> = { builder: '🔨', researcher: '🔍', verifier: '✅', documenter: '📝', evaluator: '📊', planner: '🧠' }
-
-  useEffect(() => { fetch('/api/workers').then(r => r.json()).then(setWorkers).catch(() => setWorkers([])) }, [])
-
+function Workers() {
+  const [w, setW] = useState<Worker[]>([])
+  const ic = {builder:'🔨',researcher:'🔍',verifier:'✅',documenter:'📝',evaluator:'📊',planner:'🧠'}
+  useEffect(()=>{fetch('/api/workers').then(r=>r.json()).then(d=>setW(d||[])).catch(()=>[])},[])
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-      <h2 style={{ fontSize: '18px', fontWeight: 'bold' }}>Workers</h2>
-      {workers.length === 0 ? <p style={{ color: '#6b7280', fontSize: '12px' }}>No workers active. Start a task to activate workers!</p> : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '10px' }}>
-          {workers.map((w) => (
-            <div key={w.id} style={{ background: 'white', padding: '12px', borderRadius: '6px', textAlign: 'center' }}>
-              <div style={{ fontSize: '24px' }}>{icons[w.type] || '🤖'}</div>
-              <div style={{ fontWeight: '500', fontSize: '12px', marginTop: '4px' }}>{w.name}</div>
-              <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: w.status === 'running' ? '#22c55e' : '#9ca3af', margin: '4px auto 0' }} />
-            </div>
-          ))}
-        </div>
-      )}
+    <div style={{maxWidth:1200,gap:24,display:'flex',flexDirection:'column'}}>
+      <div><h2 style={{fontSize:24,fontWeight:600,margin:0}}>Workers</h2><p style={{fontSize:14,color:c.textLight,margin:0}}>Your AI workforce</p></div>
+      {w.length===0?<div style={{background:c.surface,padding:60,borderRadius:12,textAlign:'center'}}><div style={{fontSize:48,marginBottom:16}}>◉</div><p style={{color:c.textLight}}>No workers</p></div>:
+        <div style={{display:'grid',gridTemplateColumns:'repeat(6,1fr)',gap:16}}>{w.map(x=>(<div key={x.id} style={{background:c.surface,padding:24,borderRadius:12,boxShadow:`0 2px 8px ${c.border}`,textAlign:'center'}}>
+          <div style={{fontSize:36,marginBottom:12}}>{ic[x.type]||'🤖'}</div>
+          <div style={{fontWeight:600,marginBottom:4}}>{x.name}</div>
+          <div style={{fontSize:11,color:c.textLight,marginBottom:12}}>{x.type}</div>
+          <div style={{width:8,height:8,borderRadius:'50%',background:x.status==='running'?c.success:c.textLight,margin:'0 auto'}}/>
+        </div>))}</div>}
     </div>
   )
 }
 
-function TasksPanel() {
-  const [tasks, setTasks] = useState<Task[]>([])
-  const colors: Record<string, string> = { completed: '#22c55e', running: '#3b82f6', pending: '#eab308', failed: '#ef4444', high: '#ef4444', medium: '#eab308' }
-
-  useEffect(() => { fetch('/api/tasks').then(r => r.json()).then(setTasks).catch(() => setTasks([])) }, [])
-
+function Tasks() {
+  const [t, setT] = useState<Task[]>([])
+  const [show, setShow] = useState(false)
+  const [n, setN] = useState({title:'',project:'',priority:'medium'})
+  useEffect(()=>{fetch('/api/tasks').then(r=>r.json()).then(d=>setT(d||[])).catch(()=>[])},[])
+  const add = async () => {if(!n.title)return;await fetch('/api/tasks',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(n)});setT(await fetch('/api/tasks').then(r=>r.json()));setShow(false);setN({title:'',project:'',priority:'medium'})}
+  const sc = {completed:c.success,running:c.primary,pending:c.warning,failed:c.error,high:c.error,medium:c.warning,low:c.textLight}
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between' }}><h2 style={{ fontSize: '18px', fontWeight: 'bold' }}>Tasks</h2><button style={{ background: '#2563eb', color: 'white', padding: '4px 10px', borderRadius: '4px', border: 'none' }}>+ New</button></div>
-      {tasks.length === 0 ? <p style={{ color: '#6b7280', fontSize: '12px' }}>No tasks yet.</p> : (
-        <div style={{ background: 'white', borderRadius: '6px', overflow: 'hidden' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead><tr style={{ background: '#f9fafb', borderBottom: '1px solid #e5e7eb' }}>
-              <th style={{ padding: '6px 10px', textAlign: 'left', color: '#6b7280', fontSize: '11px' }}>Task</th>
-              <th style={{ padding: '6px 10px', textAlign: 'left', color: '#6b7280', fontSize: '11px' }}>Priority</th>
-              <th style={{ padding: '6px 10px', textAlign: 'left', color: '#6b7280', fontSize: '11px' }}>Status</th>
-            </tr></thead>
-            <tbody>
-              {tasks.slice(0, 10).map((t) => (<tr key={t.id} style={{ borderBottom: '1px solid #f3f4f6' }}>
-                <td style={{ padding: '6px 10px', fontWeight: '500', fontSize: '12px' }}>{t.title}</td>
-                <td style={{ padding: '6px 10px' }}><span style={{ padding: '2px 6px', borderRadius: '6px', fontSize: '10px', background: (colors[t.priority] || '#9ca3af') + '20', color: colors[t.priority] || '#9ca3af' }}>{t.priority}</span></td>
-                <td style={{ padding: '6px 10px' }}><span style={{ padding: '2px 6px', borderRadius: '6px', fontSize: '10px', background: (colors[t.status] || '#9ca3af') + '20', color: colors[t.status] || '#9ca3af' }}>{t.status}</span></td>
-              </tr>))}
-            </tbody>
+    <div style={{maxWidth:1200,gap:24,display:'flex',flexDirection:'column'}}>
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+        <div><h2 style={{fontSize:24,fontWeight:600,margin:0}}>Tasks</h2><p style={{fontSize:14,color:c.textLight,margin:0}}>Track your tasks</p></div>
+        <button onClick={()=>setShow(true)} style={{background:c.primary,color:'white',padding:'12px 20px',borderRadius:8,border:'none',cursor:'pointer',fontSize:13}}>+ New Task</button>
+      </div>
+      <div style={{background:c.surface,borderRadius:12,boxShadow:`0 2px 8px ${c.border}`,overflow:'hidden'}}>
+        <table style={{width:'100%',borderCollapse:'collapse'}}>
+          <thead><tr style={{background:c.bg}}><th style={{padding:'14px 20px',textAlign:'left',fontSize:12,color:c.textLight,fontWeight:500}}>Task</th><th style={{padding:'14px 20px',textAlign:'left',fontSize:12,color:c.textLight,fontWeight:500}}>Project</th><th style={{padding:'14px 20px',textAlign:'left',fontSize:12,color:c.textLight,fontWeight:500}}>Priority</th><th style={{padding:'14px 20px',textAlign:'left',fontSize:12,color:c.textLight,fontWeight:500}}>Status</th></tr></thead>
+          <tbody>{t.length===0?<tr><td colSpan={4} style={{padding:40,textAlign:'center',color:c.textLight}}>No tasks yet</td></tr>:t.map(x=>(<tr key={x.id} style={{borderTop:`1px solid ${c.border}`}}><td style={{padding:'14px 20px',fontWeight:500,fontSize:13}}>{x.title}</td><td style={{padding:'14px 20px',fontSize:13,color:c.textLight}}>{x.project||'-'}</td><td style={{padding:'14px 20px'}}><span style={{padding:'4px 10px',borderRadius:20,fontSize:11,background:sc[x.priority]||c.textLight,color:'white'}}>{x.priority}</span></td><td style={{padding:'14px 20px'}}><span style={{padding:'4px 10px',borderRadius:20,fontSize:11,background:sc[x.status]||c.textLight,color:'white'}}>{x.status}</span></td></tr>))}</tbody>
+        </table>
+      </div>
+      {show&&<M title="New Task" onClose={()=>setShow(false)} onSave={add} fields={[{l:'Title',v:n.title,onChange:(e:any)=>setN({...n,title:e.target.value})},{l:'Project',v:n.project,onChange:(e:any)=>setN({...n,project:e.target.value})},{l:'Priority',v:n.priority,onChange:(e:any)=>setN({...n,priority:e.target.value}),type:'select',options:['low','medium','high']}]}/>}
+    </div>
+  )
+}
+
+function Reviews() {
+  const [r, setR] = useState<Review[]>([])
+  useEffect(()=>{fetch('/api/reviews').then(r=>r.json()).then(d=>setR(d||[])).catch(()=>[])},[])
+  const app = async (id:string) => {await fetch(`/api/reviews/${id}/approve`,{method:'POST'});setR(r.map(x=>x.id===id?{...x,status:'approved'}:x))}
+  const rej = async (id:string) => {await fetch(`/api/reviews/${id}/reject`,{method:'POST'});setR(r.map(x=>x.id===id?{...x,status:'rejected'}:x))}
+  const p = r.filter(x=>x.status==='pending'), h = r.filter(x=>x.status!=='pending')
+  return (
+    <div style={{maxWidth:1200,gap:24,display:'flex',flexDirection:'column'}}>
+      <div><h2 style={{fontSize:24,fontWeight:600,margin:0}}>Reviews</h2><p style={{fontSize:14,color:c.textLight,margin:0}}>Pending approvals</p></div>
+      <div style={{background:c.surface,padding:24,borderRadius:12,boxShadow:`0 2px 8px ${c.border}`}}>
+        <h3 style={{fontSize:16,fontWeight:600,margin:'0 0 16px 0'}}>Pending ({p.length})</h3>
+        {p.length===0?<p style={{color:c.textLight,textAlign:'center',padding:20}}>No pending reviews</p>:<div style={{display:'flex',flexDirection:'column',gap:12}}>{p.map(x=>(<div key={x.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:16,background:c.bg,borderRadius:8}}><div><div style={{fontWeight:500}}>{x.title}</div><div style={{fontSize:12,color:c.textLight,marginTop:4}}>{x.requester} · {x.type}</div></div><div style={{display:'flex',gap:8}}><button onClick={()=>rej(x.id)} style={{padding:'8px 16px',borderRadius:6,border:'none',background:c.error,color:'white',cursor:'pointer'}}>Reject</button><button onClick={()=>app(x.id)} style={{padding:'8px 16px',borderRadius:6,border:'none',background:c.success,color:'white',cursor:'pointer'}}>Approve</button></div></div>))}</div>}
+      </div>
+      {h.length>0&&<div style={{background:c.surface,padding:24,borderRadius:12,boxShadow:`0 2px 8px ${c.border}`}}><h3 style={{fontSize:16,fontWeight:600,margin:'0 0 16px 0'}}>History</h3>{h.map(x=>(<div key={x.id} style={{display:'flex',justifyContent:'space-between',padding:12,borderBottom:`1px solid ${c.border}`}}><span>{x.title}</span><span style={{fontSize:12,padding:'2px 8px',borderRadius:4,background:x.status==='approved'?c.success+'20':c.error+'20',color:x.status==='approved'?c.success:c.error}}>{x.status}</span></div>))}</div>}
+    </div>
+  )
+}
+
+function Ideas() {
+  const [i, setI] = useState<Idea[]>([])
+  const [show, setShow] = useState(false)
+  const [n, setN] = useState({title:'',description:'',tags:'',priority:'medium'})
+  useEffect(()=>{fetch('/api/ideas').then(r=>r.json()).then(d=>setI(d||[])).catch(()=>[])},[])
+  const add = async () => {if(!n.title)return;await fetch('/api/ideas',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...n,tags:n.tags.split(',').map(t=>t.trim()).filter(Boolean)})});setI(await fetch('/api/ideas').then(r=>r.json()));setShow(false);setN({title:'',description:'',tags:'',priority:'medium'})}
+  const sc = {new:c.primary,reviewing:c.warning,approved:c.success,rejected:c.error}
+  return (
+    <div style={{maxWidth:1200,gap:24,display:'flex',flexDirection:'column'}}>
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+        <div><h2 style={{fontSize:24,fontWeight:600,margin:0}}>Ideas</h2><p style={{fontSize:14,color:c.textLight,margin:0}}>Collect and manage ideas</p></div>
+        <button onClick={()=>setShow(true)} style={{background:c.secondary,color:'white',padding:'12px 20px',borderRadius:8,border:'none',cursor:'pointer',fontSize:13}}>+ New Idea</button>
+      </div>
+      {i.length===0?<div style={{background:c.surface,padding:60,borderRadius:12,textAlign:'center'}}><div style={{fontSize:48,marginBottom:16}}>💡</div><p style={{color:c.textLight}}>No ideas yet</p></div>:
+        <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:16}}>{i.map(x=>(<div key={x.id} style={{background:c.surface,padding:20,borderRadius:12,boxShadow:`0 2px 8px ${c.border}`}}>
+          <div style={{display:'flex',justifyContent:'space-between',marginBottom:12}}><h4 style={{fontSize:14,fontWeight:600,margin:0}}>{x.title}</h4><span style={{padding:'3px 8px',borderRadius:12,fontSize:10,background:sc[x.status]||c.textLight,color:'white'}}>{x.status}</span></div>
+          <p style={{fontSize:12,color:c.textLight,margin:'0 0 12px 0'}}>{x.description}</p>
+          <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>{x.tags.map((t,k)=><span key={k} style={{padding:'2px 8px',background:c.bg,borderRadius:4,fontSize:10}}>{t}</span>)}</div>
+        </div>))}</div>}
+      {show&&<M title="New Idea" onClose={()=>setShow(false)} onSave={add} fields={[{l:'Title',v:n.title,onChange:(e:any)=>setN({...n,title:e.target.value})},{l:'Description',v:n.description,onChange:(e:any)=>setN({...n,description:e.target.value}),type:'textarea'},{l:'Tags (comma)',v:n.tags,onChange:(e:any)=>setN({...n,tags:e.target.value})}]}/>}
+    </div>
+  )
+}
+
+function APIs() {
+  const [cn, setCn] = useState<Connection[]>([])
+  const [pr, setPr] = useState<{id:string,name:string,models:{id:string,name:string}[]}[]}>([])
+  const [show, setShow] = useState(false)
+  const [n, setN] = useState({name:'',provider:'',model:'',apiKey:''})
+  useEffect(()=>{fetch('/api/connections').then(r=>r.json()).then(d=>setCn(d||[])).catch(()=>[]);fetch('/api/providers').then(r=>r.json()).then(d=>setPr(d||[])).catch(()=>[])},[])
+  const sp = pr.find(p=>p.id===n.provider)
+  const add = async () => {if(!n.name||!n.provider)return;await fetch('/api/connections',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:n.name,provider:n.provider,model:n.model,api_key:n.apiKey})});setCn(await fetch('/api/connections').then(r=>r.json()));setShow(false);setN({name:'',provider:'',model:'',apiKey:''})}
+  const sc = {connected:c.success,disconnected:c.textLight,error:c.error}
+  return (
+    <div style={{maxWidth:1200,gap:24,display:'flex',flexDirection:'column'}}>
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+        <div><h2 style={{fontSize:24,fontWeight:600,margin:0}}>API Connections</h2><p style={{fontSize:14,color:c.textLight,margin:0}}>Manage your API integrations</p></div>
+        <button onClick={()=>setShow(true)} style={{background:c.primary,color:'white',padding:'12px 20px',borderRadius:8,border:'none',cursor:'pointer',fontSize:13}}>+ Add API</button>
+      </div>
+      {cn.length===0?<div style={{background:c.surface,padding:60,borderRadius:12,textAlign:'center'}}><div style={{fontSize:48,marginBottom:16}}>⚙</div><p style={{color:c.textLight}}>No connections</p></div>:
+        <div style={{background:c.surface,borderRadius:12,boxShadow:`0 2px 8px ${c.border}`,overflow:'hidden'}}>
+          <table style={{width:'100%',borderCollapse:'collapse'}}>
+            <thead><tr style={{background:c.bg}}><th style={{padding:'14px 20px',textAlign:'left',fontSize:12,color:c.textLight,fontWeight:500}}>Name</th><th style={{padding:'14px 20px',textAlign:'left',fontSize:12,color:c.textLight,fontWeight:500}}>Provider</th><th style={{padding:'14px 20px',textAlign:'left',fontSize:12,color:c.textLight,fontWeight:500}}>Model</th><th style={{padding:'14px 20px',textAlign:'left',fontSize:12,color:c.textLight,fontWeight:500}}>Status</th></tr></thead>
+            <tbody>{cn.map(x=>(<tr key={x.id} style={{borderTop:`1px solid ${c.border}`}}><td style={{padding:'14px 20px',fontWeight:500}}>{x.name}</td><td style={{padding:'14px 20px',color:c.textLight}}>{pr.find(p=>p.id===x.provider)?.name||x.provider}</td><td style={{padding:'14px 20px',color:c.textLight}}>{x.model||'-'}</td><td style={{padding:'14px 20px'}}><span style={{padding:'4px 10px',borderRadius:20,fontSize:11,background:sc[x.status]||c.textLight,color:'white'}}>{x.status}</span></td></tr>))}</tbody>
           </table>
+        </div>}
+      {show&&<div style={{position:'fixed',top:0,left:0,right:0,bottom:0,background:'rgba(0,0,0,0.4)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:100}}>
+        <div style={{background:c.surface,padding:32,borderRadius:16,width:420,boxShadow:'0 20px 60px rgba(0,0,0,0.2)'}}>
+          <h3 style={{fontSize:18,fontWeight:600,margin:'0 0 24px 0'}}>Add API Connection</h3>
+          <div style={{marginBottom:16}}><label style={{display:'block',fontSize:12,marginBottom:6}}>Name</label><input value={n.name} onChange={e=>setN({...n,name:e.target.value})} style={{width:'100%',padding:12,border:`1px solid ${c.border}`,borderRadius:8,fontSize:14}} placeholder="My API"/></div>
+          <div style={{marginBottom:16}}><label style={{display:'block',fontSize:12,marginBottom:6}}>Provider</label><select value={n.provider} onChange={e=>setN({...n,provider:e.target.value,model:''})} style={{width:'100%',padding:12,border:`1px solid ${c.border}`,borderRadius:8,fontSize:14}}><option value="">Select provider</option>{pr.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select></div>
+          {sp&&sp.models.length>0&&<div style={{marginBottom:16}}><label style={{display:'block',fontSize:12,marginBottom:6}}>Model</label><select value={n.model} onChange={e=>setN({...n,model:e.target.value})} style={{width:'100%',padding:12,border:`1px solid ${c.border}`,borderRadius:8,fontSize:14}}><option value="">Select model</option>{sp.models.map(m=><option key={m.id} value={m.id}>{m.name}</option>)}</select></div>}
+          <div style={{marginBottom:24}}><label style={{display:'block',fontSize:12,marginBottom:6}}>API Key</label><input type="password" value={n.apiKey} onChange={e=>setN({...n,apiKey:e.target.value})} style={{width:'100%',padding:12,border:`1px solid ${c.border}`,borderRadius:8,fontSize:14}} placeholder="sk-..."/></div>
+          <div style={{display:'flex',gap:12,justifyContent:'flex-end'}}><button onClick={()=>setShow(false)} style={{padding:'12px 20px',borderRadius:8,border:`1px solid ${c.border}`,background:c.surface,cursor:'pointer'}}>Cancel</button><button onClick={add} style={{padding:'12px 20px',borderRadius:8,border:'none',background:c.primary,color:'white',cursor:'pointer'}}>Add</button></div>
         </div>
-      )}
+      </div>}
     </div>
   )
 }
 
-function ReviewsPanel() {
-  const [reviews, setReviews] = useState<Review[]>([])
-
-  useEffect(() => { fetch('/api/reviews').then(r => r.json()).then(setReviews).catch(() => setReviews([])) }, [])
-
-  const handleApprove = async (id: string) => {
-    await fetch(`/api/reviews/${id}/approve`, { method: 'POST' })
-    setReviews(reviews.map(r => r.id === id ? { ...r, status: 'approved' } : r))
-  }
-
-  const handleReject = async (id: string) => {
-    await fetch(`/api/reviews/${id}/reject`, { method: 'POST' })
-    setReviews(reviews.map(r => r.id === id ? { ...r, status: 'rejected' } : r))
-  }
-
+function Routes() {
+  const rt = [{m:'GET',p:'/api/projects',h:'list_projects'},{m:'POST',p:'/api/projects',h:'create_project'},{m:'GET',p:'/api/tasks',h:'list_tasks'},{m:'GET',p:'/api/workers',h:'list_workers'},{m:'GET',p:'/api/reviews',h:'list_reviews'},{m:'GET',p:'/api/ideas',h:'list_ideas'},{m:'GET',p:'/api/connections',h:'list_connections'},{m:'GET',p:'/api/providers',h:'list_providers'},{m:'GET',p:'/api/souls',h:'list_souls'},{m:'GET',p:'/health',h:'health_check'}]
+  const mc = {GET:c.success,POST:c.primary,PUT:c.warning,DELETE:c.error}
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-      <h2 style={{ fontSize: '18px', fontWeight: 'bold' }}>Reviews</h2>
-      {reviews.length === 0 ? <p style={{ color: '#6b7280', fontSize: '12px' }}>No pending reviews.</p> : (
-        <div style={{ background: 'white', padding: '12px', borderRadius: '6px' }}>
-          {reviews.filter(r => r.status === 'pending').map((r) => (
-            <div key={r.id} style={{ padding: '10px', border: '1px solid #e5e7eb', borderRadius: '4px', marginBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div><div style={{ fontWeight: '500', fontSize: '13px' }}>{r.title}</div><div style={{ fontSize: '11px', color: '#6b7280' }}>{r.requester}</div></div>
-              <div style={{ display: 'flex', gap: '4px' }}><button onClick={() => handleReject(r.id)} style={{ background: '#ef4444', color: 'white', padding: '4px 8px', borderRadius: '4px', border: 'none', fontSize: '11px' }}>Reject</button><button onClick={() => handleApprove(r.id)} style={{ background: '#22c55e', color: 'white', padding: '4px 8px', borderRadius: '4px', border: 'none', fontSize: '11px' }}>Approve</button></div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
-
-function IdeasPanel() {
-  const [ideas, setIdeas] = useState<Idea[]>([])
-  const [showAdd, setShowAdd] = useState(false)
-  const [newIdea, setNewIdea] = useState({ title: '', description: '', tags: '' })
-  
-  useEffect(() => { fetch('/api/ideas').then(r => r.json()).then(setIdeas).catch(() => setIdeas([])) }, [])
-  
-  const handleAdd = async () => {
-    if (!newIdea.title) return
-    await fetch('/api/ideas', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title: newIdea.title, description: newIdea.description, tags: newIdea.tags.split(',').map(t => t.trim()).filter(Boolean) })
-    })
-    const res = await fetch('/api/ideas')
-    setIdeas(await res.json())
-    setShowAdd(false)
-    setNewIdea({ title: '', description: '', tags: '' })
-  }
-  
-  const statusColors: Record<string, string> = { new: '#3b82f6', reviewing: '#eab308', approved: '#22c55e' }
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between' }}><h2 style={{ fontSize: '18px', fontWeight: 'bold' }}>Ideas</h2><button onClick={() => setShowAdd(true)} style={{ background: '#2563eb', color: 'white', padding: '4px 10px', borderRadius: '4px', border: 'none' }}>+ New</button></div>
-      {ideas.length === 0 ? <p style={{ color: '#6b7280', fontSize: '12px' }}>No ideas yet.</p> : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px' }}>
-          {ideas.map((idea) => (<div key={idea.id} style={{ background: 'white', padding: '12px', borderRadius: '6px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}><span style={{ fontWeight: '600', fontSize: '13px' }}>{idea.title}</span><span style={{ padding: '2px 6px', borderRadius: '6px', fontSize: '10px', background: (statusColors[idea.status] || '#9ca3af') + '20', color: statusColors[idea.status] || '#9ca3af' }}>{idea.status}</span></div>
-            <p style={{ fontSize: '11px', color: '#6b7280', marginBottom: '6px' }}>{idea.description}</p>
-            <div style={{ display: 'flex', gap: '4px' }}>{idea.tags.map((tag, i) => (<span key={i} style={{ background: '#f3f4f6', padding: '2px 6px', borderRadius: '4px', fontSize: '10px' }}>{tag}</span>))}</div>
-          </div>))}
-        </div>
-      )}
-      
-      {showAdd && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
-          <div style={{ background: 'white', padding: '20px', borderRadius: '10px', width: '350px' }}>
-            <h3 style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: '14px' }}>💡 Add New Idea</h3>
-            <div style={{ marginBottom: '10px' }}><label style={{ display: 'block', fontSize: '12px', fontWeight: '500', marginBottom: '4px' }}>Title</label><input value={newIdea.title} onChange={e => setNewIdea({...newIdea, title: e.target.value})} placeholder="Idea title" style={{ width: '100%', padding: '8px', border: '1px solid #e5e7eb', borderRadius: '4px', fontSize: '13px' }} /></div>
-            <div style={{ marginBottom: '10px' }}><label style={{ display: 'block', fontSize: '12px', fontWeight: '500', marginBottom: '4px' }}>Description</label><textarea value={newIdea.description} onChange={e => setNewIdea({...newIdea, description: e.target.value})} placeholder="Describe your idea" rows={3} style={{ width: '100%', padding: '8px', border: '1px solid #e5e7eb', borderRadius: '4px', fontSize: '13px', resize: 'vertical' }} /></div>
-            <div style={{ marginBottom: '14px' }}><label style={{ display: 'block', fontSize: '12px', fontWeight: '500', marginBottom: '4px' }}>Tags (comma separated)</label><input value={newIdea.tags} onChange={e => setNewIdea({...newIdea, tags: e.target.value})} placeholder="AI, automation, etc." style={{ width: '100%', padding: '8px', border: '1px solid #e5e7eb', borderRadius: '4px', fontSize: '13px' }} /></div>
-            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}><button onClick={() => setShowAdd(false)} style={{ padding: '8px 12px', borderRadius: '4px', border: '1px solid #e5e7eb', background: 'white', cursor: 'pointer' }}>Cancel</button><button onClick={handleAdd} style={{ padding: '8px 12px', borderRadius: '4px', border: 'none', background: '#2563eb', color: 'white', cursor: 'pointer' }}>Add</button></div>
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
-
-function APIsPanel() {
-  const [connections, setConnections] = useState<Connection[]>([])
-  const [providers, setProviders] = useState<{id: string, name: string, models: {id: string, name: string}[]}[]>([])
-  const [showAdd, setShowAdd] = useState(false)
-  const [newConn, setNewConn] = useState({ name: '', provider: '', model: '', apiKey: '' })
-  
-  useEffect(() => { 
-    fetch('/api/connections').then(r => r.json()).then(setConnections).catch(() => setConnections([]))
-    fetch('/api/providers').then(r => r.json()).then(setProviders).catch(() => setProviders([]))
-  }, [])
-  
-  const selectedProvider = providers.find(p => p.id === newConn.provider)
-  
-  const handleAdd = async () => {
-    if (!newConn.name || !newConn.provider) return
-    await fetch('/api/connections', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: newConn.name, provider: newConn.provider, model: newConn.model, api_key: newConn.apiKey })
-    })
-    const res = await fetch('/api/connections')
-    setConnections(await res.json())
-    setShowAdd(false)
-    setNewConn({ name: '', provider: '', model: '', apiKey: '' })
-  }
-  
-  const providerNames: Record<string, string> = { openai: 'OpenAI', anthropic: 'Anthropic', deepseek: 'DeepSeek', minimax: 'MiniMax', alibaba: '阿里百炼', zhipu: '智谱AI', openrouter: 'OpenRouter', github: 'GitHub', brave: 'Brave Search' }
-  const statusColors: Record<string, string> = { connected: '#22c55e', disconnected: '#9ca3af', error: '#ef4444' }
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between' }}><h2 style={{ fontSize: '18px', fontWeight: 'bold' }}>API Connections</h2><button onClick={() => setShowAdd(true)} style={{ background: '#2563eb', color: 'white', padding: '4px 10px', borderRadius: '4px', border: 'none' }}>+ Add</button></div>
-      {connections.length === 0 ? <p style={{ color: '#6b7280', fontSize: '12px' }}>No API connections configured.</p> : (
-        <div style={{ background: 'white', borderRadius: '6px', overflow: 'hidden' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead><tr style={{ background: '#f9fafb', borderBottom: '1px solid #e5e7eb' }}><th style={{ padding: '6px 10px', textAlign: 'left', color: '#6b7280', fontSize: '11px' }}>Name</th><th style={{ padding: '6px 10px', textAlign: 'left', color: '#6b7280', fontSize: '11px' }}>Provider</th><th style={{ padding: '6px 10px', textAlign: 'left', color: '#6b7280', fontSize: '11px' }}>Model</th><th style={{ padding: '6px 10px', textAlign: 'left', color: '#6b7280', fontSize: '11px' }}>Status</th></tr></thead>
-            <tbody>
-              {connections.map((c) => (
-                <tr key={c.id} style={{ borderBottom: '1px solid #f3f4f6' }}>
-                  <td style={{ padding: '6px 10px', fontWeight: '500', fontSize: '12px' }}>{c.name}</td>
-                  <td style={{ padding: '6px 10px', color: '#6b7280', fontSize: '12px' }}>{providerNames[c.provider] || c.provider}</td>
-                  <td style={{ padding: '6px 10px', color: '#6b7280', fontSize: '12px' }}>{c.model || '-'}</td>
-                  <td style={{ padding: '6px 10px' }}><span style={{ padding: '2px 6px', borderRadius: '6px', fontSize: '10px', background: (statusColors[c.status] || '#9ca3af') + '20', color: statusColors[c.status] || '#9ca3af' }}>{c.status}</span></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-      
-      {showAdd && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
-          <div style={{ background: 'white', padding: '20px', borderRadius: '10px', width: '380px' }}>
-            <h3 style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: '14px' }}>➕ Add API Connection</h3>
-            <div style={{ marginBottom: '10px' }}><label style={{ display: 'block', fontSize: '12px', fontWeight: '500', marginBottom: '4px' }}>Name</label><input value={newConn.name} onChange={e => setNewConn({...newConn, name: e.target.value})} placeholder="e.g., My OpenAI" style={{ width: '100%', padding: '8px', border: '1px solid #e5e7eb', borderRadius: '4px', fontSize: '13px' }} /></div>
-            <div style={{ marginBottom: '10px' }}><label style={{ display: 'block', fontSize: '12px', fontWeight: '500', marginBottom: '4px' }}>Provider</label><select value={newConn.provider} onChange={e => setNewConn({...newConn, provider: e.target.value, model: ''})} style={{ width: '100%', padding: '8px', border: '1px solid #e5e7eb', borderRadius: '4px', fontSize: '13px' }}><option value="">Select provider</option>{providers.map(p => (<option key={p.id} value={p.id}>{p.name}</option>))}</select></div>
-            {selectedProvider && selectedProvider.models.length > 0 && (
-              <div style={{ marginBottom: '10px' }}><label style={{ display: 'block', fontSize: '12px', fontWeight: '500', marginBottom: '4px' }}>Model</label><select value={newConn.model} onChange={e => setNewConn({...newConn, model: e.target.value})} style={{ width: '100%', padding: '8px', border: '1px solid #e5e7eb', borderRadius: '4px', fontSize: '13px' }}><option value="">Select model</option>{selectedProvider.models.map(m => (<option key={m.id} value={m.id}>{m.name}</option>))}</select></div>
-            )}
-            <div style={{ marginBottom: '14px' }}><label style={{ display: 'block', fontSize: '12px', fontWeight: '500', marginBottom: '4px' }}>API Key</label><input type="password" value={newConn.apiKey} onChange={e => setNewConn({...newConn, apiKey: e.target.value})} placeholder="sk-..." style={{ width: '100%', padding: '8px', border: '1px solid #e5e7eb', borderRadius: '4px', fontSize: '13px' }} /></div>
-            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}><button onClick={() => setShowAdd(false)} style={{ padding: '8px 12px', borderRadius: '4px', border: '1px solid #e5e7eb', background: 'white', cursor: 'pointer' }}>Cancel</button><button onClick={handleAdd} style={{ padding: '8px 12px', borderRadius: '4px', border: 'none', background: '#2563eb', color: 'white', cursor: 'pointer' }}>Add</button></div>
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
-
-function RoutesPanel() {
-  const routes = [
-    { method: 'GET', path: '/api/projects', handler: 'list_projects' },
-    { method: 'POST', path: '/api/projects', handler: 'create_project' },
-    { method: 'GET', path: '/api/tasks', handler: 'list_tasks' },
-    { method: 'GET', path: '/api/workers', handler: 'list_workers' },
-    { method: 'GET', path: '/api/reviews', handler: 'list_reviews' },
-    { method: 'GET', path: '/api/ideas', handler: 'list_ideas' },
-    { method: 'GET', path: '/api/connections', handler: 'list_connections' },
-    { method: 'GET', path: '/health', handler: 'health_check' },
-  ]
-  const methodColors: Record<string, string> = { GET: '#22c55e', POST: '#3b82f6', PUT: '#eab308', DELETE: '#ef4444' }
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-      <h2 style={{ fontSize: '18px', fontWeight: 'bold' }}>API Routes</h2>
-      <div style={{ background: 'white', borderRadius: '6px', overflow: 'hidden' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead><tr style={{ background: '#f9fafb', borderBottom: '1px solid #e5e7eb' }}><th style={{ padding: '6px 10px', textAlign: 'left', color: '#6b7280', fontSize: '11px' }}>Method</th><th style={{ padding: '6px 10px', textAlign: 'left', color: '#6b7280', fontSize: '11px' }}>Path</th><th style={{ padding: '6px 10px', textAlign: 'left', color: '#6b7280', fontSize: '11px' }}>Handler</th></tr></thead>
-          <tbody>{routes.map((r, i) => (<tr key={i} style={{ borderBottom: '1px solid #f3f4f6' }}><td style={{ padding: '6px 10px' }}><span style={{ padding: '2px 6px', borderRadius: '4px', fontSize: '10px', background: (methodColors[r.method] || '#9ca3af') + '20', color: methodColors[r.method] || '#9ca3af', fontWeight: '500' }}>{r.method}</span></td><td style={{ padding: '6px 10px', fontFamily: 'monospace', fontSize: '11px' }}>{r.path}</td><td style={{ padding: '6px 10px', color: '#6b7280', fontSize: '11px' }}>{r.handler}</td></tr>))}</tbody>
+    <div style={{maxWidth:1200,gap:24,display:'flex',flexDirection:'column'}}>
+      <div><h2 style={{fontSize:24,fontWeight:600,margin:0}}>API Routes</h2><p style={{fontSize:14,color:c.textLight,margin:0}}>Available endpoints</p></div>
+      <div style={{background:c.surface,borderRadius:12,boxShadow:`0 2px 8px ${c.border}`,overflow:'hidden'}}>
+        <table style={{width:'100%',borderCollapse:'collapse'}}>
+          <thead><tr style={{background:c.bg}}><th style={{padding:'14px 20px',textAlign:'left',fontSize:12,color:c.textLight,fontWeight:500}}>Method</th><th style={{padding:'14px 20px',textAlign:'left',fontSize:12,color:c.textLight,fontWeight:500}}>Path</th><th style={{padding:'14px 20px',textAlign:'left',fontSize:12,color:c.textLight,fontWeight:500}}>Handler</th></tr></thead>
+          <tbody>{rt.map((x,i)=><tr key={i} style={{borderTop:`1px solid ${c.border}`}}><td style={{padding:'14px 20px'}}><span style={{padding:'4px 10px',borderRadius:4,fontSize:11,background:mc[x.m]||c.textLight,color:'white',fontWeight:500}}>{x.m}</span></td><td style={{padding:'14px 20px',fontFamily:'monospace',fontSize:13}}>{x.p}</td><td style={{padding:'14px 20px',color:c.textLight,fontSize:13}}>{x.h}</td></tr>)}</tbody>
         </table>
       </div>
     </div>
   )
 }
 
-function ConsolePanel() {
-  const [messages, setMessages] = useState([{ role: 'assistant', content: 'Hello! I am your AI Planner.\n\nCommands:\n• "status"\n• "list tasks"\n• "help"\n\nHow can I help?' }])
-  const [input, setInput] = useState('')
-  const messagesEndRef = useRef<HTMLDivElement>(null)
-
-  const sendMessage = () => {
-    if (!input.trim()) return
-    setMessages([...messages, { role: 'user', content: input }])
-    setTimeout(() => {
-      let response = 'Got: "' + input + '"\n\nTry "help"'
-      if (input.toLowerCase().includes('status')) response = '📊 Fetching status from API...'
-      else if (input.toLowerCase().includes('help')) response = 'Commands:\n• "status"\n• "list tasks"\n• "help"'
-      setMessages(prev => [...prev, { role: 'assistant', content: response }])
-    }, 500)
-    setInput('')
-  }
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', height: 'calc(100vh - 60px)' }}>
-      <h2 style={{ fontSize: '18px', fontWeight: 'bold' }}>Console</h2>
-      <div style={{ flex: 1, background: '#1e1e1e', borderRadius: '8px', padding: '12px', overflow: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-        {messages.map((msg, i) => (<div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: msg.role === 'user' ? 'flex-end' : 'flex-start' }}><div style={{ maxWidth: '80%', padding: '8px 12px', borderRadius: '12px', background: msg.role === 'user' ? '#2563eb' : '#2d2d2d', color: 'white', fontSize: '13px', whiteSpace: 'pre-wrap' }}>{msg.content}</div></div>))}
-        <div ref={messagesEndRef} /></div>
-      <div style={{ display: 'flex', gap: '8px' }}>
-        <input value={input} onChange={(e) => setInput(e.target.value)} onKeyPress={(e) => { if (e.key === 'Enter') sendMessage() }} placeholder="Type command..." style={{ flex: 1, padding: '10px 14px', borderRadius: '8px', border: '1px solid #e5e7eb', fontSize: '14px' }} />
-        <button onClick={sendMessage} style={{ background: '#2563eb', color: 'white', padding: '10px 20px', borderRadius: '8px', border: 'none', cursor: 'pointer' }}>Send</button>
-      </div>
-    </div>
-  )
-}
-
-function SoulsPanel() {
-  const [souls, setSouls] = useState<SoulConfig[]>([])
-  const [selectedSoul, setSelectedSoul] = useState<SoulConfig | null>(null)
-  const [editForm, setEditForm] = useState({ coreTruths: '', boundaries: '', vibe: '', emoji: '' })
-
-  useEffect(() => { fetch('/api/souls').then(r => r.json()).then(setSouls).catch(() => setSouls([])) }, [])
-
-  const openEdit = (soul: SoulConfig) => { setSelectedSoul(soul); setEditForm({ coreTruths: soul.coreTruths, boundaries: soul.boundaries, vibe: soul.vibe, emoji: soul.emoji }) }
-  
-  const saveSoul = async () => { 
-    if (selectedSoul) {
-      await fetch(`/api/souls/${selectedSoul.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...editForm, name: selectedSoul.name })
-      })
-      const res = await fetch('/api/souls')
-      setSouls(await res.json())
-      alert('Soul saved!')
-      setSelectedSoul(null) 
-    } 
-  }
-
-  const resetSoul = async (id: string) => {
-    await fetch(`/api/souls/${id}/reset`, { method: 'POST' })
-    const res = await fetch('/api/souls')
-    setSouls(await res.json())
-  }
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-      <div><h2 style={{ fontSize: '18px', fontWeight: 'bold' }}>Soul Settings</h2><p style={{ color: '#6b7280', fontSize: '11px' }}>Configure personality for Planner and Workers</p></div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
-        {souls.map((soul) => (<div key={soul.id} onClick={() => openEdit(soul)} style={{ background: 'white', padding: '14px', borderRadius: '6px', cursor: 'pointer' }}>
-          <div style={{ fontSize: '24px', marginBottom: '6px' }}>{soul.emoji}</div>
-          <div style={{ fontWeight: '600', fontSize: '14px' }}>{soul.name}</div>
-          <p style={{ fontSize: '11px', color: '#6b7280', marginTop: '4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{soul.coreTruths.slice(0, 40)}...</p>
-        </div>))}
-      </div>
-      {selectedSoul && (<div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
-        <div style={{ background: 'white', padding: '20px', borderRadius: '10px', width: '450px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '14px' }}><h3 style={{ fontSize: '16px', fontWeight: 'bold' }}>{selectedSoul.emoji} {selectedSoul.name} Soul</h3><button onClick={() => setSelectedSoul(null)} style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer' }}>×</button></div>
-          <div style={{ marginBottom: '10px' }}><label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '4px' }}>Emoji</label><input value={editForm.emoji} onChange={(e) => setEditForm({...editForm, emoji: e.target.value})} style={{ width: '100%', padding: '8px', border: '1px solid #e5e7eb', borderRadius: '4px', fontSize: '14px' }} /></div>
-          <div style={{ marginBottom: '10px' }}><label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '4px' }}>Core Truths</label><textarea value={editForm.coreTruths} onChange={(e) => setEditForm({...editForm, coreTruths: e.target.value})} rows={2} style={{ width: '100%', padding: '8px', border: '1px solid #e5e7eb', borderRadius: '4px', fontSize: '12px', resize: 'vertical' }} /></div>
-          <div style={{ marginBottom: '10px' }}><label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '4px' }}>Boundaries</label><textarea value={editForm.boundaries} onChange={(e) => setEditForm({...editForm, boundaries: e.target.value})} rows={2} style={{ width: '100%', padding: '8px', border: '1px solid #e5e7eb', borderRadius: '4px', fontSize: '12px', resize: 'vertical' }} /></div>
-          <div style={{ marginBottom: '14px' }}><label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '4px' }}>Vibe</label><textarea value={editForm.vibe} onChange={(e) => setEditForm({...editForm, vibe: e.target.value})} rows={2} style={{ width: '100%', padding: '8px', border: '1px solid #e5e7eb', borderRadius: '4px', fontSize: '12px', resize: 'vertical' }} /></div>
-          <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}><button onClick={() => setSelectedSoul(null)} style={{ padding: '8px 12px', borderRadius: '4px', border: '1px solid #e5e7eb', background: 'white', cursor: 'pointer' }}>Cancel</button><button onClick={saveSoul} style={{ padding: '8px 12px', borderRadius: '4px', border: 'none', background: '#2563eb', color: 'white', cursor: 'pointer' }}>Save</button></div>
-        </div></div>)}
-    </div>
-  )
-}
-
-function SettingsPanel() {
-  const [mode, setMode] = useState('normal')
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-      <h2 style={{ fontSize: '18px', fontWeight: 'bold' }}>Settings</h2>
-      <div style={{ background: 'white', padding: '16px', borderRadius: '6px' }}>
-        <h3 style={{ fontSize: '14px', marginBottom: '10px' }}>Execution Mode</h3>
-        <div style={{ display: 'flex', gap: '6px' }}>{['safe', 'normal', 'turbo'].map((m) => (<button key={m} onClick={() => setMode(m)} style={{ padding: '6px 12px', borderRadius: '4px', border: mode === m ? '2px solid #2563eb' : '2px solid #e5e7eb', background: mode === m ? '#eff6ff' : 'white', color: mode === m ? '#2563eb' : '#374151', cursor: 'pointer', textTransform: 'capitalize', fontSize: '12px' }}>{m}</button>))}</div>
-      </div>
-    </div>
-  )
-}
+function Console() {
+  const [ms, setMs] = useState([{r:'assistant',c:'Hello! I am your AI Planner.\n\nCommands:\n• "status"\n• "list tasks"\n• "help"\n\nHow can I help?'}])
+  const [i, setI] = useState(''
