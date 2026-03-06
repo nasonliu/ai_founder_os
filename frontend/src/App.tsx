@@ -254,24 +254,31 @@ function IdeasPanel() {
 
 function APIsPanel() {
   const [connections, setConnections] = useState<Connection[]>([])
+  const [providers, setProviders] = useState<{id: string, name: string, models: {id: string, name: string}[]}[]>([])
   const [showAdd, setShowAdd] = useState(false)
-  const [newConn, setNewConn] = useState({ name: '', provider: '', apiKey: '' })
+  const [newConn, setNewConn] = useState({ name: '', provider: '', model: '', apiKey: '' })
   
-  useEffect(() => { fetch('/api/connections').then(r => r.json()).then(setConnections).catch(() => setConnections([])) }, [])
+  useEffect(() => { 
+    fetch('/api/connections').then(r => r.json()).then(setConnections).catch(() => setConnections([]))
+    fetch('/api/providers').then(r => r.json()).then(setProviders).catch(() => setProviders([]))
+  }, [])
+  
+  const selectedProvider = providers.find(p => p.id === newConn.provider)
   
   const handleAdd = async () => {
-    if (!newConn.name) return
+    if (!newConn.name || !newConn.provider) return
     await fetch('/api/connections', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: newConn.name, provider: newConn.provider, api_key: newConn.apiKey })
+      body: JSON.stringify({ name: newConn.name, provider: newConn.provider, model: newConn.model, api_key: newConn.apiKey })
     })
     const res = await fetch('/api/connections')
     setConnections(await res.json())
     setShowAdd(false)
-    setNewConn({ name: '', provider: '', apiKey: '' })
+    setNewConn({ name: '', provider: '', model: '', apiKey: '' })
   }
   
+  const providerNames: Record<string, string> = { openai: 'OpenAI', anthropic: 'Anthropic', deepseek: 'DeepSeek', minimax: 'MiniMax', alibaba: '阿里百炼', zhipu: '智谱AI', openrouter: 'OpenRouter', github: 'GitHub', brave: 'Brave Search' }
   const statusColors: Record<string, string> = { connected: '#22c55e', disconnected: '#9ca3af', error: '#ef4444' }
 
   return (
@@ -280,9 +287,16 @@ function APIsPanel() {
       {connections.length === 0 ? <p style={{ color: '#6b7280', fontSize: '12px' }}>No API connections configured.</p> : (
         <div style={{ background: 'white', borderRadius: '6px', overflow: 'hidden' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead><tr style={{ background: '#f9fafb', borderBottom: '1px solid #e5e7eb' }}><th style={{ padding: '6px 10px', textAlign: 'left', color: '#6b7280', fontSize: '11px' }}>Name</th><th style={{ padding: '6px 10px', textAlign: 'left', color: '#6b7280', fontSize: '11px' }}>Provider</th><th style={{ padding: '6px 10px', textAlign: 'left', color: '#6b7280', fontSize: '11px' }}>Status</th><th style={{ padding: '6px 10px', textAlign: 'left', color: '#6b7280', fontSize: '11px' }}>Calls</th></tr></thead>
+            <thead><tr style={{ background: '#f9fafb', borderBottom: '1px solid #e5e7eb' }}><th style={{ padding: '6px 10px', textAlign: 'left', color: '#6b7280', fontSize: '11px' }}>Name</th><th style={{ padding: '6px 10px', textAlign: 'left', color: '#6b7280', fontSize: '11px' }}>Provider</th><th style={{ padding: '6px 10px', textAlign: 'left', color: '#6b7280', fontSize: '11px' }}>Model</th><th style={{ padding: '6px 10px', textAlign: 'left', color: '#6b7280', fontSize: '11px' }}>Status</th></tr></thead>
             <tbody>
-              {connections.map((c) => (<tr key={c.id} style={{ borderBottom: '1px solid #f3f4f6' }}><td style={{ padding: '6px 10px', fontWeight: '500', fontSize: '12px' }}>{c.name}</td><td style={{ padding: '6px 10px', color: '#6b7280', fontSize: '12px' }}>{c.provider}</td><td style={{ padding: '6px 10px' }}><span style={{ padding: '2px 6px', borderRadius: '6px', fontSize: '10px', background: (statusColors[c.status] || '#9ca3af') + '20', color: statusColors[c.status] || '#9ca3af' }}>{c.status}</span></td><td style={{ padding: '6px 10px', color: '#6b7280', fontSize: '12px' }}>{c.calls}</td></tr>))}
+              {connections.map((c) => (
+                <tr key={c.id} style={{ borderBottom: '1px solid #f3f4f6' }}>
+                  <td style={{ padding: '6px 10px', fontWeight: '500', fontSize: '12px' }}>{c.name}</td>
+                  <td style={{ padding: '6px 10px', color: '#6b7280', fontSize: '12px' }}>{providerNames[c.provider] || c.provider}</td>
+                  <td style={{ padding: '6px 10px', color: '#6b7280', fontSize: '12px' }}>{c.model || '-'}</td>
+                  <td style={{ padding: '6px 10px' }}><span style={{ padding: '2px 6px', borderRadius: '6px', fontSize: '10px', background: (statusColors[c.status] || '#9ca3af') + '20', color: statusColors[c.status] || '#9ca3af' }}>{c.status}</span></td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
@@ -290,10 +304,13 @@ function APIsPanel() {
       
       {showAdd && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
-          <div style={{ background: 'white', padding: '20px', borderRadius: '10px', width: '350px' }}>
+          <div style={{ background: 'white', padding: '20px', borderRadius: '10px', width: '380px' }}>
             <h3 style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: '14px' }}>➕ Add API Connection</h3>
-            <div style={{ marginBottom: '10px' }}><label style={{ display: 'block', fontSize: '12px', fontWeight: '500', marginBottom: '4px' }}>Name</label><input value={newConn.name} onChange={e => setNewConn({...newConn, name: e.target.value})} placeholder="e.g., OpenAI" style={{ width: '100%', padding: '8px', border: '1px solid #e5e7eb', borderRadius: '4px', fontSize: '13px' }} /></div>
-            <div style={{ marginBottom: '10px' }}><label style={{ display: 'block', fontSize: '12px', fontWeight: '500', marginBottom: '4px' }}>Provider</label><select value={newConn.provider} onChange={e => setNewConn({...newConn, provider: e.target.value})} style={{ width: '100%', padding: '8px', border: '1px solid #e5e7eb', borderRadius: '4px', fontSize: '13px' }}><option value="">Select provider</option><option value="openai">OpenAI</option><option value="anthropic">Anthropic</option><option value="deepseek">DeepSeek</option><option value="github">GitHub</option></select></div>
+            <div style={{ marginBottom: '10px' }}><label style={{ display: 'block', fontSize: '12px', fontWeight: '500', marginBottom: '4px' }}>Name</label><input value={newConn.name} onChange={e => setNewConn({...newConn, name: e.target.value})} placeholder="e.g., My OpenAI" style={{ width: '100%', padding: '8px', border: '1px solid #e5e7eb', borderRadius: '4px', fontSize: '13px' }} /></div>
+            <div style={{ marginBottom: '10px' }}><label style={{ display: 'block', fontSize: '12px', fontWeight: '500', marginBottom: '4px' }}>Provider</label><select value={newConn.provider} onChange={e => setNewConn({...newConn, provider: e.target.value, model: ''})} style={{ width: '100%', padding: '8px', border: '1px solid #e5e7eb', borderRadius: '4px', fontSize: '13px' }}><option value="">Select provider</option>{providers.map(p => (<option key={p.id} value={p.id}>{p.name}</option>))}</select></div>
+            {selectedProvider && selectedProvider.models.length > 0 && (
+              <div style={{ marginBottom: '10px' }}><label style={{ display: 'block', fontSize: '12px', fontWeight: '500', marginBottom: '4px' }}>Model</label><select value={newConn.model} onChange={e => setNewConn({...newConn, model: e.target.value})} style={{ width: '100%', padding: '8px', border: '1px solid #e5e7eb', borderRadius: '4px', fontSize: '13px' }}><option value="">Select model</option>{selectedProvider.models.map(m => (<option key={m.id} value={m.id}>{m.name}</option>))}</select></div>
+            )}
             <div style={{ marginBottom: '14px' }}><label style={{ display: 'block', fontSize: '12px', fontWeight: '500', marginBottom: '4px' }}>API Key</label><input type="password" value={newConn.apiKey} onChange={e => setNewConn({...newConn, apiKey: e.target.value})} placeholder="sk-..." style={{ width: '100%', padding: '8px', border: '1px solid #e5e7eb', borderRadius: '4px', fontSize: '13px' }} /></div>
             <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}><button onClick={() => setShowAdd(false)} style={{ padding: '8px 12px', borderRadius: '4px', border: '1px solid #e5e7eb', background: 'white', cursor: 'pointer' }}>Cancel</button><button onClick={handleAdd} style={{ padding: '8px 12px', borderRadius: '4px', border: 'none', background: '#2563eb', color: 'white', cursor: 'pointer' }}>Add</button></div>
           </div>

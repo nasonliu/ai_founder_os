@@ -12,7 +12,7 @@ from contextlib import asynccontextmanager
 import sys
 from pathlib import Path
 
-# Add parent to path for storage module
+# Add parent to path for storage and providers modules
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from storage import Storage, DEFAULT_SOULS
 
@@ -542,6 +542,26 @@ def get_connection(connection_id: str) -> Dict:
     if connection_id not in db.connections:
         raise HTTPException(status_code=404, detail="Connection not found")
     return db.connections[connection_id].dict()
+
+
+# ============================================================================
+# Providers API - Available AI Providers and Models
+# ============================================================================
+
+from connections.providers import PROVIDERS, list_providers
+
+@app.get("/api/providers", response_model=List[Dict])
+def get_providers():
+    """List all available AI providers"""
+    return list_providers()
+
+
+@app.get("/api/providers/{provider_id}", response_model=Dict)
+def get_provider(provider_id: str):
+    """Get provider details with models"""
+    if provider_id not in PROVIDERS:
+        raise HTTPException(status_code=404, detail="Provider not found")
+    return {"id": provider_id, **PROVIDERS[provider_id]}
 
 
 # ============================================================================
