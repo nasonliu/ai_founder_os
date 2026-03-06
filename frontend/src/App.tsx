@@ -23,16 +23,9 @@ type TabId = 'overview' | 'projects' | 'workers' | 'tasks' | 'reviews' | 'ideas'
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabId>('overview')
 
-  useEffect(() => {
-    const hash = window.location.hash.slice(1) as TabId
-    if (['overview', 'projects', 'workers', 'tasks', 'reviews', 'ideas', 'apis', 'routes', 'console', 'settings'].includes(hash)) setActiveTab(hash)
-  }, [])
-
-  const handleTabChange = (tab: TabId) => window.location.hash = tab
-
   const tabs = [
     { id: 'overview', label: 'Overview' }, { id: 'projects', label: 'Projects' }, { id: 'workers', label: 'Workers' },
-    { id: 'tasks', label: 'Tasks' }, { id: 'reviews', label: 'Reviews' }, { id: 'ideas', label: 'Ideas' },
+    { id: 'tasks', label: 'Tasks' }, { id: 'reviews', label: 'Reviews' }, { id: 'ideas', label: ' Ideas' },
     { id: 'apis', label: 'APIs' }, { id: 'routes', label: 'Routes' }, { id: 'console', label: 'Console' }, { id: 'settings', label: 'Settings' },
   ]
 
@@ -59,8 +52,8 @@ export default function App() {
         <p style={{ fontSize: '10px', color: '#6b7280', marginBottom: '12px' }}>Dashboard</p>
         <nav style={{ display: 'flex', flexDirection: 'column', gap: '2px', flex: 1 }}>
           {tabs.map((tab) => (
-            <button key={tab.id} onClick={() => handleTabChange(tab.id as TabId)}
-              style={{ padding: '6px 8px', borderRadius: '4px', textAlign: 'left', background: activeTab === tab.id ? '#2563eb' : 'transparent',
+            <button key={tab.id} onClick={() => setActiveTab(tab.id as TabId)}
+              style={{ padding: '8px 10px', borderRadius: '4px', textAlign: 'left', background: activeTab === tab.id ? '#2563eb' : 'transparent',
                 color: activeTab === tab.id ? 'white' : '#374151', border: 'none', cursor: 'pointer', fontSize: '12px' }}>{tab.label}</button>
           ))}
         </nav>
@@ -111,7 +104,7 @@ function ProjectsPanel() {
 }
 
 function WorkersPanel() {
-  const workers = [{ id: 'w1', name: 'Builder-01', type: 'builder', status: 'running', xp: 1250 }]
+  const workers = [{ id: 'w1', name: 'Builder-01', type: 'builder', status: 'running', xp: 1250 }, { id: 'w2', name: 'Researcher-01', type: 'researcher', status: 'idle', xp: 890 }]
   const icons: Record<string, string> = { builder: '🔨', researcher: '🔍', verifier: '✅', documenter: '📝', evaluator: '📊' }
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -207,21 +200,21 @@ function APIsPanel({ apis }: { apis: APIConnection[] }) {
             <td style={{ padding: '6px 10px', fontWeight: '500', fontSize: '12px' }}>{api.name}</td>
             <td style={{ padding: '6px 10px' }}><span style={{ padding: '2px 6px', borderRadius: '6px', fontSize: '10px', background: statusColors[api.status] + '20', color: statusColors[api.status] }}>{api.status}</span></td>
             <td style={{ padding: '6px 10px', color: '#6b7280', fontSize: '12px' }}>{api.calls.toLocaleString()}</td>
-            <td style={{ padding: '6px 10px' }}><button onClick={() => openSettings(api)} style={{ background: '#f3f4f6', padding: '4px 6px', borderRadius: '4px', border: 'none', fontSize: '10px', cursor: 'pointer' }}>⚙️</button></td>
+            <td style={{ padding: '6px 10px' }}><button onClick={() => openSettings(api)} style={{ background: '#f3f4f6', padding: '4px 8px', borderRadius: '4px', border: 'none', fontSize: '11px', cursor: 'pointer' }}>⚙️</button></td>
           </tr>))}
         </tbody></table></div>
       {selectedAPI && (<div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
-        <div style={{ background: 'white', padding: '20px', borderRadius: '10px', width: '360px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}><h3 style={{ fontSize: '16px', fontWeight: 'bold' }}>⚙️ {selectedAPI.name}</h3>
+        <div style={{ background: 'white', padding: '20px', borderRadius: '10px', width: '340px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '14px' }}><h3 style={{ fontSize: '15px', fontWeight: 'bold' }}>⚙️ {selectedAPI.name}</h3>
           <button onClick={() => setSelectedAPI(null)} style={{ background: 'none', border: 'none', fontSize: '18px', cursor: 'pointer' }}>×</button></div>
-          <div style={{ marginBottom: '12px' }}><label style={{ display: 'block', fontSize: '12px', fontWeight: '500', marginBottom: '4px' }}>API Key</label>
-          <input type="password" value={editForm.apiKey} onChange={(e) => setEditForm({...editForm, apiKey: e.target.value})} style={{ width: '100%', padding: '6px 10px', border: '1px solid #e5e7eb', borderRadius: '4px', fontSize: '13px' }} /></div>
-          <div style={{ marginBottom: '16px' }}><label style={{ display: 'block', fontSize: '12px', fontWeight: '500', marginBottom: '4px' }}>Status</label>
-          <select value={editForm.status} onChange={(e) => setEditForm({...editForm, status: e.target.value})} style={{ width: '100%', padding: '6px 10px', border: '1px solid #e5e7eb', borderRadius: '4px', fontSize: '13px' }}>
+          <div style={{ marginBottom: '10px' }}><label style={{ display: 'block', fontSize: '11px', fontWeight: '500', marginBottom: '4px' }}>API Key</label>
+          <input type="password" value={editForm.apiKey} onChange={(e) => setEditForm({...editForm, apiKey: e.target.value})} style={{ width: '100%', padding: '6px 10px', border: '1px solid #e5e7eb', borderRadius: '4px', fontSize: '12px' }} /></div>
+          <div style={{ marginBottom: '14px' }}><label style={{ display: 'block', fontSize: '11px', fontWeight: '500', marginBottom: '4px' }}>Status</label>
+          <select value={editForm.status} onChange={(e) => setEditForm({...editForm, status: e.target.value})} style={{ width: '100%', padding: '6px 10px', border: '1px solid #e5e7eb', borderRadius: '4px', fontSize: '12px' }}>
             <option value="connected">Connected</option><option value="disconnected">Disconnected</option><option value="error">Error</option></select></div>
-          <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-            <button onClick={() => setSelectedAPI(null)} style={{ padding: '6px 12px', borderRadius: '4px', border: '1px solid #e5e7eb', background: 'white', cursor: 'pointer' }}>Cancel</button>
-            <button onClick={() => { alert('Saved!'); setSelectedAPI(null) }} style={{ padding: '6px 12px', borderRadius: '4px', border: 'none', background: '#2563eb', color: 'white', cursor: 'pointer' }}>Save</button>
+          <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
+            <button onClick={() => setSelectedAPI(null)} style={{ padding: '6px 10px', borderRadius: '4px', border: '1px solid #e5e7eb', background: 'white', cursor: 'pointer', fontSize: '12px' }}>Cancel</button>
+            <button onClick={() => { alert('Saved!'); setSelectedAPI(null) }} style={{ padding: '6px 10px', borderRadius: '4px', border: 'none', background: '#2563eb', color: 'white', cursor: 'pointer', fontSize: '12px' }}>Save</button>
           </div></div></div>)}
     </div>
   )
