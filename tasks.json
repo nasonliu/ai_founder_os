@@ -81,6 +81,15 @@
       "validator": "manual_review",
       "risk_level": "low",
       "status": "completed"
+    },
+    {
+      "id": "task_020",
+      "title": "Implement XP-based and Dependency-aware Task Scheduling",
+      "goal": "Implement advanced task scheduling in Planner that considers task dependencies and XP factors. Replaces simple FIFO with priority-based scheduling.",
+      "expected_artifact": "src/planner/planner.py",
+      "validator": "pytest",
+      "risk_level": "low",
+      "status": "completed"
     }
   ]
 }

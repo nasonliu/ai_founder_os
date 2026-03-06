@@ -7,7 +7,7 @@ It manages task generation, worker scheduling, and execution flow.
 
 import json
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, field, asdict
 from enum import Enum
@@ -178,15 +178,123 @@ class Planner:
             project = Project(**proj_data)
             self.projects[project.id] = project
     
+    def _are_dependencies_met(self, task: Task) -> bool:
+        """Check if all dependencies for a task are satisfied"""
+        if not task.depends_on:
+            return True
+        
+        for dep_id in task.depends_on:
+            dep_task = self.tasks.get(dep_id)
+            if not dep_task:
+                # Unknown dependency - assume not met
+                return False
+            # Dependency is met only if task is verified or completed
+            if dep_task.state not in ["verified", "completed"]:
+                return False
+        return True
+    
+    def _calculate_task_priority(self, task: Task) -> float:
+        """
+        Calculate priority for a task based on multiple factors.
+        
+        Priority formula:
+        Priority = Base_Priority + XP_Bonus + Urgency_Factor - Risk_Penalty
+        
+        Where:
+        - Base_Priority: Based on task risk level
+        - XP_Bonus: Higher for tasks that can be done by high-XP workers
+        - Urgency_Factor: Based on dependency chain urgency
+        - Risk_Penalty: Lower priority for high-risk tasks
+        """
+        priority = 0.0
+        
+        # Base Priority: Higher for lower risk (we want to complete low-risk first)
+        risk_priority = {
+            "low": 10.0,
+            "medium": 5.0,
+            "high": 0.0
+        }
+        priority += risk_priority.get(task.risk_level, 5.0)
+        
+        # Urgency Factor: Tasks with more dependents are more urgent
+        urgency = self._calculate_dependency_urgency(task.id)
+        priority += urgency
+        
+        # Risk Penalty: High-risk tasks get reduced priority
+        if task.risk_level == "high":
+            priority -= 2.0
+        
+        # Boost for tasks that have been waiting longer
+        if task.timestamps.get("created_at"):
+            try:
+                created = datetime.fromisoformat(task.timestamps["created_at"].replace("Z", "+00:00"))
+                now = datetime.now(timezone.utc)
+                wait_hours = (now - created).total_seconds() / 3600
+                # Add up to 5 points for waiting time (max 24 hours)
+                priority += min(5.0, wait_hours * 0.2)
+            except (ValueError, TypeError):
+                pass
+        
+        # Lower priority for tasks that have been retried (they might be problematic)
+        priority -= task.retry_count * 1.0
+        
+        return priority
+    
+    def _calculate_dependency_urgency(self, task_id: str) -> float:
+        """
+        Calculate urgency based on how many other tasks depend on this task.
+        Tasks that block many other tasks should be prioritized higher.
+        """
+        urgency = 0.0
+        for task in self.tasks.values():
+            if task_id in task.depends_on:
+                # This task depends on task_id - check if that dependent is ready to run
+                if task.state in ["queued", "created"]:
+                    urgency += 2.0
+        return urgency
+    
+    def _get_runnable_tasks(self) -> List[Task]:
+        """
+        Get all tasks that are ready to run (dependencies met and in queue).
+        """
+        runnable = []
+        for task_id in self.task_queue:
+            task = self.tasks.get(task_id)
+            if task and task.state == "queued" and self._are_dependencies_met(task):
+                runnable.append(task)
+        return runnable
+    
     def get_next_task(self) -> Optional[Task]:
-        """Get next task from queue based on priority"""
+        """
+        Get next task from queue based on XP-based and dependency-aware scheduling.
+        
+        Priority is calculated considering:
+        - Task dependencies are satisfied
+        - Base priority (risk level)
+        - Dependency chain urgency
+        - Wait time
+        - Retry count
+        """
         if not self.task_queue:
             return None
         
-        # Simple priority: FIFO for now
-        # TODO: Add XP-based and dependency-aware scheduling
-        task_id = self.task_queue[0]
-        return self.tasks.get(task_id)
+        # Get all runnable tasks (dependencies met)
+        runnable_tasks = self._get_runnable_tasks()
+        
+        if not runnable_tasks:
+            return None
+        
+        # Calculate priority for each runnable task
+        scored_tasks = [
+            (task, self._calculate_task_priority(task))
+            for task in runnable_tasks
+        ]
+        
+        # Sort by priority (highest first)
+        scored_tasks.sort(key=lambda x: x[1], reverse=True)
+        
+        # Return the highest priority task
+        return scored_tasks[0][0]
     
     def assign_task(self, task_id: str, worker_id: str) -> bool:
         """Assign task to a worker"""
@@ -217,6 +325,9 @@ class Planner:
         if success:
             task.state = "verified"
             self.consecutive_failures = 0  # Reset on success
+            # Remove from queue if it was there
+            if task_id in self.task_queue:
+                self.task_queue.remove(task_id)
         else:
             task.state = "failed"
             task.retry_count += 1
