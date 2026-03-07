@@ -753,3 +753,100 @@ def health_check() -> Dict:
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
+
+
+# ============================================================================
+# API Keys Management & Model Fetching
+# ============================================================================
+
+from api_keys import get_provider_models, DEFAULT_MODELS
+import json
+from pathlib import Path
+
+# API Keys storage
+KEYS_FILE = Path(__file__).parent.parent / "data" / "api_keys.json"
+
+def load_keys() -> Dict:
+    """Load API keys from file"""
+    if KEYS_FILE.exists():
+        try:
+            return json.loads(KEYS_FILE.read_text())
+        except:
+            pass
+    return {}
+
+def save_keys(keys: Dict) -> None:
+    """Save API keys to file"""
+    KEYS_FILE.parent.mkdir(exist_ok=True)
+    KEYS_FILE.write_text(json.dumps(keys, indent=2))
+
+
+@app.get("/api/keys")
+def list_api_keys():
+    """List saved API key providers (not the keys themselves)"""
+    keys = load_keys()
+    return {"providers": list(keys.keys())}
+
+
+@app.post("/api/keys/{provider}")
+def save_api_key(provider: str, key: str = ""):
+    """Save API key for a provider"""
+    keys = load_keys()
+    if key:
+        keys[provider] = key
+    elif provider in keys:
+        del keys[provider]
+    save_keys(keys)
+    return {"provider": provider, "saved": bool(key)}
+
+
+@app.get("/api/providers")
+def list_providers():
+    """List all providers with their models"""
+    keys = load_keys()
+    result = []
+    
+    all_providers = {
+        "openai": "OpenAI",
+        "anthropic": "Anthropic",
+        "deepseek": "DeepSeek",
+        "minimax": "MiniMax",
+        "alibaba": "阿里云 (Qwen)",
+        "zhipu": "智谱AI",
+        "openrouter": "OpenRouter",
+        "github": "GitHub Copilot",
+        "brave": "Brave Search",
+    }
+    
+    for pid, pname in all_providers.items():
+        api_key = keys.get(pid, "")
+        models = get_provider_models(pid, api_key if api_key else None)
+        result.append({
+            "id": pid,
+            "name": pname,
+            "models": models,
+            "has_key": bool(api_key),
+        })
+    
+    return result
+
+
+@app.get("/api/providers/{provider}")
+def get_provider(provider: str):
+    """Get a specific provider with models"""
+    keys = load_keys()
+    api_key = keys.get(provider, "")
+    models = get_provider_models(provider, api_key if api_key else None)
+    
+    names = {
+        "openai": "OpenAI", "anthropic": "Anthropic", "deepseek": "DeepSeek",
+        "minimax": "MiniMax", "alibaba": "阿里云 (Qwen)", "zhipu": "智谱AI",
+        "openrouter": "OpenRouter", "github": "GitHub Copilot", "brave": "Brave Search",
+    }
+    
+    return {
+        "id": provider,
+        "name": names.get(provider, provider),
+        "models": models,
+        "has_key": bool(api_key),
+    }
