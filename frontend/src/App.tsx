@@ -8,6 +8,19 @@ interface Project { id: string; name: string; status: string; progress: number; 
 interface Worker { id: string; name: string; type: string; status: string; xp: number }
 interface Task { id: string; title: string; project: string; status: string; priority: string }
 interface Review { id: string; title: string; type: string; status: string; requester: string }
+// Default providers - used when API is not available
+const DEFAULT_PROVIDERS: Provider[] = [
+  { id: "openai", name: "OpenAI", models: [{id:"gpt-4o",name:"GPT-4o"},{id:"gpt-4o-mini",name:"GPT-4o Mini"},{id:"gpt-4-turbo",name:"GPT-4 Turbo"},{id:"gpt-3.5-turbo",name:"GPT-3.5 Turbo"}] },
+  { id: "anthropic", name: "Anthropic", models: [{id:"claude-sonnet-4",name:"Claude Sonnet 4"},{id:"claude-3-opus",name:"Claude 3 Opus"},{id:"claude-3-sonnet",name:"Claude 3 Sonnet"},{id:"claude-3-haiku",name:"Claude 3 Haiku"}] },
+  { id: "deepseek", name: "DeepSeek", models: [{id:"deepseek-chat",name:"DeepSeek Chat"},{id:"deepseek-coder",name:"DeepSeek Coder"}] },
+  { id: "minimax", name: "MiniMax", models: [{id:"MiniMax-Text-01",name:"MiniMax Text 01"},{id:"abab6.5s",name:"Abab 6.5s"},{id:"abab6.5g",name:"Abab 6.5g"}] },
+  { id: "alibaba", name: "Alibaba (Qwen)", models: [{id:"qwen-turbo",name:"Qwen Turbo"},{id:"qwen-plus",name:"Qwen Plus"},{id:"qwen-max",name:"Qwen Max"}] },
+  { id: "zhipu", name: "Zhipu AI", models: [{id:"glm-4",name:"GLM-4"},{id:"glm-4-flash",name:"GLM-4 Flash"},{id:"glm-4-plus",name:"GLM-4 Plus"}] },
+  { id: "openrouter", name: "OpenRouter", models: [{id:"claude-3.5-sonnet",name:"Claude 3.5 Sonnet"},{id:"gemini-pro-1.5",name:"Gemini Pro 1.5"},{id:"llama-3.1-405b",name:"Llama 3.1 405B"}] },
+  { id: "github", name: "GitHub Copilot", models: [{id:"gpt-4",name:"GPT-4"},{id:"gpt-4o",name:"GPT-4o"}] },
+  { id: "brave", name: "Brave Search", models: [{id:"web-search",name:"Web Search API"}] },
+]
+
 interface Provider { id: string; name: string; models: { id: string; name: string }[] }
 interface Connection { id: string; name: string; provider: string; model: string; status: string; calls: number }
 interface SoulConfig { id: string; name: string; coreTruths: string; boundaries: string; vibe: string; emoji: string }
@@ -227,10 +240,14 @@ function Ideas() {
 
 function APIs() {
   const [cn, setCn] = useState<Connection[]>([])
-  const [pr, setPr] = useState<Provider[]>([])
+  const [pr, setPr] = useState<Provider[]>(DEFAULT_PROVIDERS)
   const [show, setShow] = useState(false)
   const [n, setN] = useState({name:'',provider:'',model:'',apiKey:''})
-  useEffect(()=>{fetch(API_BASE + '/api/connections').then(r=>r.json()).then(d=>setCn(d||[])).catch(()=>[]);fetch(API_BASE + '/api/providers').then(r=>r.json()).then(d=>setPr(d||[])).catch(()=>[])},[])
+  useEffect(()=>{
+    // Try to fetch from API, fall back to default providers
+    fetch(API_BASE + '/api/providers').then(r=>r.json()).then(d=>{if(d&&d.length>0)setPr(d)}).catch(()=>{});
+    fetch(API_BASE + '/api/connections').then(r=>r.json()).then(d=>setCn(d||[])).catch(()=>[]);
+  },[])
   const sp = pr.find(p=>p.id===n.provider)
   const add = async () => {if(!n.name||!n.provider)return;await fetch(API_BASE + '/api/connections',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:n.name,provider:n.provider,model:n.model,api_key:n.apiKey})});setCn(await fetch(API_BASE + '/api/connections').then(r=>r.json()));setShow(false);setN({name:'',provider:'',model:'',apiKey:''})}
   const sc = {connected:c.success,disconnected:c.textLight,error:c.error}

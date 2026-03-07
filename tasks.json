@@ -99,6 +99,15 @@
       "validator": "npm_run_build",
       "risk_level": "medium",
       "status": "completed"
+    },
+    {
+      "id": "task_022",
+      "title": "Implement Vector Memory System",
+      "goal": "Add per-agent isolated memory with vector embeddings for semantic search. Enables agents to remember context across sessions.",
+      "expected_artifact": "src/memory.py, src/api/server.py (memory endpoints), frontend/src/App.tsx (providers fallback)",
+      "validator": "pytest",
+      "risk_level": "low",
+      "status": "completed"
     }
   ]
 }

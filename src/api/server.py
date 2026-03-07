@@ -668,6 +668,79 @@ init_default_souls()
 
 
 # ============================================================================
+# Vector Memory API - Per-Agent Isolated Memory
+# ============================================================================
+
+from memory import MemoryManager, DEFAULT_AGENTS, init_agent_memories
+
+# Initialize memories for all agents
+init_agent_memories()
+
+
+@app.get("/api/memory/agents")
+def list_memory_agents():
+    """List all agents with memory"""
+    return [{"id": agent_id, "name": agent_id.capitalize()} for agent_id in DEFAULT_AGENTS]
+
+
+@app.get("/api/memory/search")
+def search_all_memory(q: str, agents: Optional[str] = None):
+    """Search across all agents' memories"""
+    agent_list = agents.split(",") if agents else None
+    return MemoryManager.search_all(q, agent_list)
+
+
+@app.get("/api/memory/{agent_id}")
+def get_agent_memories(agent_id: str, limit: int = 50):
+    """Get all memories for an agent"""
+    if agent_id not in DEFAULT_AGENTS:
+        raise HTTPException(status_code=404, detail="Agent not found")
+    memory = MemoryManager.get_memory(agent_id)
+    return memory.get_all_memories()[:limit]
+
+
+@app.post("/api/memory/{agent_id}")
+def add_agent_memory(agent_id: str, content: str, metadata: Optional[Dict] = None):
+    """Add a memory to an agent"""
+    if agent_id not in DEFAULT_AGENTS:
+        raise HTTPException(status_code=404, detail="Agent not found")
+    memory = MemoryManager.get_memory(agent_id)
+    memory_id = memory.add_memory(content, metadata)
+    return {"id": memory_id, "agent_id": agent_id, "content": content}
+
+
+@app.get("/api/memory/{agent_id}/search")
+def search_agent_memory(agent_id: str, q: str, limit: int = 5):
+    """Search memories for an agent"""
+    if agent_id not in DEFAULT_AGENTS:
+        raise HTTPException(status_code=404, detail="Agent not found")
+    memory = MemoryManager.get_memory(agent_id)
+    return memory.search(q, limit)
+
+
+@app.delete("/api/memory/{agent_id}/{memory_id}")
+def delete_agent_memory(agent_id: str, memory_id: str):
+    """Delete a specific memory"""
+    if agent_id not in DEFAULT_AGENTS:
+        raise HTTPException(status_code=404, detail="Agent not found")
+    memory = MemoryManager.get_memory(agent_id)
+    success = memory.delete_memory(memory_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Memory not found")
+    return {"status": "deleted", "agent_id": agent_id, "memory_id": memory_id}
+
+
+@app.delete("/api/memory/{agent_id}")
+def clear_agent_memory(agent_id: str):
+    """Clear all memories for an agent"""
+    if agent_id not in DEFAULT_AGENTS:
+        raise HTTPException(status_code=404, detail="Agent not found")
+    memory = MemoryManager.get_memory(agent_id)
+    memory.clear()
+    return {"status": "cleared", "agent_id": agent_id}
+
+
+# ============================================================================
 # Health Check
 # ============================================================================
 
