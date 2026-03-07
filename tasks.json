@@ -90,6 +90,15 @@
       "validator": "pytest",
       "risk_level": "low",
       "status": "completed"
+    },
+    {
+      "id": "task_021",
+      "title": "Fix Frontend Build - Complete App.tsx Components",
+      "goal": "Fix frontend build failure by completing the missing Console, Souls, and Settings components in App.tsx. The file was truncated and missing implementations.",
+      "expected_artifact": "frontend/src/App.tsx",
+      "validator": "npm_run_build",
+      "risk_level": "medium",
+      "status": "completed"
     }
   ]
 }

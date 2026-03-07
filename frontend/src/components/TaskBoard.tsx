@@ -332,6 +332,3 @@ export function TaskBoard({ tasks, onTaskClick, onStatusChange, className }: Tas
     </div>
   );
 }
-
-export { TaskBoard };
-export type { TaskBoardProps, TaskBoardTask };

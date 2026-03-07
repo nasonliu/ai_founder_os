@@ -147,7 +147,7 @@ export function ProjectCard({
   };
 
   // Handle action
-  const handleAction = (action: ProjectCardProps['project']) => {
+  const handleAction = (action: 'pause' | 'resume' | 'archive' | 'view') => {
     onAction?.(action);
     setMenuOpen(false);
   };
@@ -259,7 +259,8 @@ export function ProjectCard({
         {priority && (
           <span className={cn("text-xs font-medium", priority.color)}>
             {priority.label} Priority
-          </span        )}
+          </span>
+        )}
         {project.tags?.slice(0, 2).map((tag) => (
           <span 
             key={tag} 
@@ -368,6 +369,3 @@ export function ProjectCardCompact({ project, onClick }: ProjectCardCompactProps
     </div>
   );
 }
-
-export { ProjectCard };
-export type { ProjectCardProps };

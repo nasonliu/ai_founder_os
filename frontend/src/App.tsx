@@ -1,16 +1,50 @@
 import { useState, useEffect, useRef } from 'react'
 
+// API Base URL - configure this for your deployment
+const API_BASE = ''; // Use empty string for same-origin, or 'http://localhost:8000' for local dev
+
 interface Idea { id: string; title: string; description: string; tags: string[]; priority: string; status: string; created: string }
 interface Project { id: string; name: string; status: string; progress: number; tasks: number; description?: string }
 interface Worker { id: string; name: string; type: string; status: string; xp: number }
 interface Task { id: string; title: string; project: string; status: string; priority: string }
 interface Review { id: string; title: string; type: string; status: string; requester: string }
+interface Provider { id: string; name: string; models: { id: string; name: string }[] }
 interface Connection { id: string; name: string; provider: string; model: string; status: string; calls: number }
 interface SoulConfig { id: string; name: string; coreTruths: string; boundaries: string; vibe: string; emoji: string }
 
 type TabId = 'overview' | 'projects' | 'workers' | 'tasks' | 'reviews' | 'ideas' | 'apis' | 'routes' | 'console' | 'souls' | 'settings'
 
 const c = { primary: '#7C9A92', bg: '#F5F2ED', surface: '#FFFFFF', text: '#4A4A4A', textLight: '#8A8A8A', success: '#8BA888', warning: '#D4B896', error: '#C49A9A', border: '#E8E4DF', secondary: '#B4A396' }
+
+// Modal component M
+interface ModalField { l: string; v: string; onChange: (e: any) => void; type?: string; options?: string[] }
+function M({ title, onClose, onSave, fields }: { title: string; onClose: () => void; onSave: () => void; fields: ModalField[] }) {
+  return (
+    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }} onClick={onClose}>
+      <div style={{ background: c.surface, padding: 32, borderRadius: 16, width: 420, boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }} onClick={e => e.stopPropagation()}>
+        <h3 style={{ fontSize: 18, fontWeight: 600, margin: '0 0 24px 0' }}>{title}</h3>
+        {fields.map((field, i) => (
+          <div key={i} style={{ marginBottom: 16 }}>
+            <label style={{ display: 'block', fontSize: 12, marginBottom: 6 }}>{field.l}</label>
+            {field.type === 'textarea' ? (
+              <textarea value={field.v} onChange={field.onChange} style={{ width: '100%', padding: 12, border: `1px solid ${c.border}`, borderRadius: 8, fontSize: 14, minHeight: 80 }} />
+            ) : field.type === 'select' ? (
+              <select value={field.v} onChange={field.onChange} style={{ width: '100%', padding: 12, border: `1px solid ${c.border}`, borderRadius: 8, fontSize: 14 }}>
+                {field.options?.map(o => <option key={o} value={o}>{o}</option>)}
+              </select>
+            ) : (
+              <input value={field.v} onChange={field.onChange} style={{ width: '100%', padding: 12, border: `1px solid ${c.border}`, borderRadius: 8, fontSize: 14 }} />
+            )}
+          </div>
+        ))}
+        <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+          <button onClick={onClose} style={{ padding: '12px 20px', borderRadius: 8, border: `1px solid ${c.border}`, background: c.surface, cursor: 'pointer' }}>Cancel</button>
+          <button onClick={onSave} style={{ padding: '12px 20px', borderRadius: 8, border: 'none', background: c.primary, color: 'white', cursor: 'pointer' }}>Save</button>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 function App() {
   const [tab, setTab] = useState<TabId>('overview')
@@ -50,12 +84,12 @@ function App() {
 function Overview() {
   const [s, setS] = useState({p:0,w:0,r:0,t:0,i:0,a:0})
   useEffect(()=>{Promise.all([
-    fetch('/api/projects').then(r=>r.json()).then(d=>(d||[]).length).catch(()=>0),
-    fetch('/api/workers').then(r=>r.json()).then(d=>(d||[]).length).catch(()=>0),
-    fetch('/api/reviews?status=pending').then(r=>r.json()).then(d=>(d||[]).length).catch(()=>0),
-    fetch('/api/tasks').then(r=>r.json()).then(d=>(d||[]).length).catch(()=>0),
-    fetch('/api/ideas').then(r=>r.json()).then(d=>(d||[]).length).catch(()=>0),
-    fetch('/api/connections').then(r=>r.json()).then(d=>(d||[]).length).catch(()=>0),
+    fetch(API_BASE + '/api/projects').then(r=>r.json()).then(d=>(d||[]).length).catch(()=>0),
+    fetch(API_BASE + '/api/workers').then(r=>r.json()).then(d=>(d||[]).length).catch(()=>0),
+    fetch(API_BASE + '/api/reviews?status=pending').then(r=>r.json()).then(d=>(d||[]).length).catch(()=>0),
+    fetch(API_BASE + '/api/tasks').then(r=>r.json()).then(d=>(d||[]).length).catch(()=>0),
+    fetch(API_BASE + '/api/ideas').then(r=>r.json()).then(d=>(d||[]).length).catch(()=>0),
+    fetch(API_BASE + '/api/connections').then(r=>r.json()).then(d=>(d||[]).length).catch(()=>0),
   ]).then(([p,w,r,t,i,a])=>setS({p,w,r,t,i,a}))},[])
   const cards = [{l:'Projects',v:s.p,i:'◇',col:c.primary},{l:'Workers',v:s.w,i:'◉',col:c.success},{l:'Reviews',v:s.r,i:'⚡',col:c.warning},{l:'Tasks',v:s.t,i:'✓',col:'#9DB4C0'},{l:'Ideas',v:s.i,i:'💡',col:c.error},{l:'APIs',v:s.a,i:'⚙',col:c.secondary}]
   return (
@@ -87,8 +121,8 @@ function Projects() {
   const [p, setP] = useState<Project[]>([])
   const [show, setShow] = useState(false)
   const [n, setN] = useState({name:'',description:'',status:'active'})
-  useEffect(()=>{fetch('/api/projects').then(r=>r.json()).then(d=>setP(d||[])).catch(()=>[])},[])
-  const add = async () => {if(!n.name)return;await fetch('/api/projects',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(n)});setP(await fetch('/api/projects').then(r=>r.json()));setShow(false);setN({name:'',description:'',status:'active'})}
+  useEffect(()=>{fetch(API_BASE + '/api/projects').then(r=>r.json()).then(d=>setP(d||[])).catch(()=>[])},[])
+  const add = async () => {if(!n.name)return;await fetch(API_BASE + '/api/projects',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(n)});setP(await fetch(API_BASE + '/api/projects').then(r=>r.json()));setShow(false);setN({name:'',description:'',status:'active'})}
   const sc = {active:c.success,paused:c.warning,completed:c.primary,archived:c.textLight}
   return (
     <div style={{maxWidth:1200,gap:24,display:'flex',flexDirection:'column'}}>
@@ -110,7 +144,7 @@ function Projects() {
 function Workers() {
   const [w, setW] = useState<Worker[]>([])
   const ic = {builder:'🔨',researcher:'🔍',verifier:'✅',documenter:'📝',evaluator:'📊',planner:'🧠'}
-  useEffect(()=>{fetch('/api/workers').then(r=>r.json()).then(d=>setW(d||[])).catch(()=>[])},[])
+  useEffect(()=>{fetch(API_BASE + '/api/workers').then(r=>r.json()).then(d=>setW(d||[])).catch(()=>[])},[])
   return (
     <div style={{maxWidth:1200,gap:24,display:'flex',flexDirection:'column'}}>
       <div><h2 style={{fontSize:24,fontWeight:600,margin:0}}>Workers</h2><p style={{fontSize:14,color:c.textLight,margin:0}}>Your AI workforce</p></div>
@@ -129,8 +163,8 @@ function Tasks() {
   const [t, setT] = useState<Task[]>([])
   const [show, setShow] = useState(false)
   const [n, setN] = useState({title:'',project:'',priority:'medium'})
-  useEffect(()=>{fetch('/api/tasks').then(r=>r.json()).then(d=>setT(d||[])).catch(()=>[])},[])
-  const add = async () => {if(!n.title)return;await fetch('/api/tasks',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(n)});setT(await fetch('/api/tasks').then(r=>r.json()));setShow(false);setN({title:'',project:'',priority:'medium'})}
+  useEffect(()=>{fetch(API_BASE + '/api/tasks').then(r=>r.json()).then(d=>setT(d||[])).catch(()=>[])},[])
+  const add = async () => {if(!n.title)return;await fetch(API_BASE + '/api/tasks',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(n)});setT(await fetch(API_BASE + '/api/tasks').then(r=>r.json()));setShow(false);setN({title:'',project:'',priority:'medium'})}
   const sc = {completed:c.success,running:c.primary,pending:c.warning,failed:c.error,high:c.error,medium:c.warning,low:c.textLight}
   return (
     <div style={{maxWidth:1200,gap:24,display:'flex',flexDirection:'column'}}>
@@ -151,7 +185,7 @@ function Tasks() {
 
 function Reviews() {
   const [r, setR] = useState<Review[]>([])
-  useEffect(()=>{fetch('/api/reviews').then(r=>r.json()).then(d=>setR(d||[])).catch(()=>[])},[])
+  useEffect(()=>{fetch(API_BASE + '/api/reviews').then(r=>r.json()).then(d=>setR(d||[])).catch(()=>[])},[])
   const app = async (id:string) => {await fetch(`/api/reviews/${id}/approve`,{method:'POST'});setR(r.map(x=>x.id===id?{...x,status:'approved'}:x))}
   const rej = async (id:string) => {await fetch(`/api/reviews/${id}/reject`,{method:'POST'});setR(r.map(x=>x.id===id?{...x,status:'rejected'}:x))}
   const p = r.filter(x=>x.status==='pending'), h = r.filter(x=>x.status!=='pending')
@@ -171,8 +205,8 @@ function Ideas() {
   const [i, setI] = useState<Idea[]>([])
   const [show, setShow] = useState(false)
   const [n, setN] = useState({title:'',description:'',tags:'',priority:'medium'})
-  useEffect(()=>{fetch('/api/ideas').then(r=>r.json()).then(d=>setI(d||[])).catch(()=>[])},[])
-  const add = async () => {if(!n.title)return;await fetch('/api/ideas',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...n,tags:n.tags.split(',').map(t=>t.trim()).filter(Boolean)})});setI(await fetch('/api/ideas').then(r=>r.json()));setShow(false);setN({title:'',description:'',tags:'',priority:'medium'})}
+  useEffect(()=>{fetch(API_BASE + '/api/ideas').then(r=>r.json()).then(d=>setI(d||[])).catch(()=>[])},[])
+  const add = async () => {if(!n.title)return;await fetch(API_BASE + '/api/ideas',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...n,tags:n.tags.split(',').map(t=>t.trim()).filter(Boolean)})});setI(await fetch(API_BASE + '/api/ideas').then(r=>r.json()));setShow(false);setN({title:'',description:'',tags:'',priority:'medium'})}
   const sc = {new:c.primary,reviewing:c.warning,approved:c.success,rejected:c.error}
   return (
     <div style={{maxWidth:1200,gap:24,display:'flex',flexDirection:'column'}}>
@@ -193,12 +227,12 @@ function Ideas() {
 
 function APIs() {
   const [cn, setCn] = useState<Connection[]>([])
-  const [pr, setPr] = useState<{id:string,name:string,models:{id:string,name:string}[]}[]}>([])
+  const [pr, setPr] = useState<Provider[]>([])
   const [show, setShow] = useState(false)
   const [n, setN] = useState({name:'',provider:'',model:'',apiKey:''})
-  useEffect(()=>{fetch('/api/connections').then(r=>r.json()).then(d=>setCn(d||[])).catch(()=>[]);fetch('/api/providers').then(r=>r.json()).then(d=>setPr(d||[])).catch(()=>[])},[])
+  useEffect(()=>{fetch(API_BASE + '/api/connections').then(r=>r.json()).then(d=>setCn(d||[])).catch(()=>[]);fetch(API_BASE + '/api/providers').then(r=>r.json()).then(d=>setPr(d||[])).catch(()=>[])},[])
   const sp = pr.find(p=>p.id===n.provider)
-  const add = async () => {if(!n.name||!n.provider)return;await fetch('/api/connections',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:n.name,provider:n.provider,model:n.model,api_key:n.apiKey})});setCn(await fetch('/api/connections').then(r=>r.json()));setShow(false);setN({name:'',provider:'',model:'',apiKey:''})}
+  const add = async () => {if(!n.name||!n.provider)return;await fetch(API_BASE + '/api/connections',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:n.name,provider:n.provider,model:n.model,api_key:n.apiKey})});setCn(await fetch(API_BASE + '/api/connections').then(r=>r.json()));setShow(false);setN({name:'',provider:'',model:'',apiKey:''})}
   const sc = {connected:c.success,disconnected:c.textLight,error:c.error}
   return (
     <div style={{maxWidth:1200,gap:24,display:'flex',flexDirection:'column'}}>
@@ -210,7 +244,7 @@ function APIs() {
         <div style={{background:c.surface,borderRadius:12,boxShadow:`0 2px 8px ${c.border}`,overflow:'hidden'}}>
           <table style={{width:'100%',borderCollapse:'collapse'}}>
             <thead><tr style={{background:c.bg}}><th style={{padding:'14px 20px',textAlign:'left',fontSize:12,color:c.textLight,fontWeight:500}}>Name</th><th style={{padding:'14px 20px',textAlign:'left',fontSize:12,color:c.textLight,fontWeight:500}}>Provider</th><th style={{padding:'14px 20px',textAlign:'left',fontSize:12,color:c.textLight,fontWeight:500}}>Model</th><th style={{padding:'14px 20px',textAlign:'left',fontSize:12,color:c.textLight,fontWeight:500}}>Status</th></tr></thead>
-            <tbody>{cn.map(x=>(<tr key={x.id} style={{borderTop:`1px solid ${c.border}`}}><td style={{padding:'14px 20px',fontWeight:500}}>{x.name}</td><td style={{padding:'14px 20px',color:c.textLight}}>{pr.find(p=>p.id===x.provider)?.name||x.provider}</td><td style={{padding:'14px 20px',color:c.textLight}}>{x.model||'-'}</td><td style={{padding:'14px 20px'}}><span style={{padding:'4px 10px',borderRadius:20,fontSize:11,background:sc[x.status]||c.textLight,color:'white'}}>{x.status}</span></td></tr>))}</tbody>
+            <tbody>{cn.map(x=>(<tr key={x.id} style={{borderTop:`1px solid ${c.border}`}}><td style={{padding:'14px 20px',fontWeight:500}}>{x.name}</td><td style={{padding:'14px 20px',color:c.textLight}}>{pr.find(p=>p.id===x.provider)?.name || x.provider}</td><td style={{padding:'14px 20px',color:c.textLight}}>{x.model || '-'}</td><td style={{padding:'14px 20px'}}><span style={{padding:'4px 10px',borderRadius:20,fontSize:11,background:sc[x.status as keyof typeof sc] || c.textLight,color:'white'}}>{x.status}</span></td></tr>))}</tbody>
           </table>
         </div>}
       {show&&<div style={{position:'fixed',top:0,left:0,right:0,bottom:0,background:'rgba(0,0,0,0.4)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:100}}>
@@ -245,4 +279,85 @@ function Routes() {
 
 function Console() {
   const [ms, setMs] = useState([{r:'assistant',c:'Hello! I am your AI Planner.\n\nCommands:\n• "status"\n• "list tasks"\n• "help"\n\nHow can I help?'}])
-  const [i, setI] = useState(''
+  const [i, setI] = useState('')
+  const send = async () => {if(!i.trim())return;const userMsg={r:'user',c:i};setMs([...ms,userMsg]);setI('');try{const res=await fetch(API_BASE + '/api/command',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({command:i})});const data=await res.json();setMs([...ms,userMsg,{r:'assistant',c:data.response||JSON.stringify(data)}])}catch{setMs([...ms,userMsg,{r:'assistant',c:'Error processing command'}])};}
+  return (
+    <div style={{maxWidth:1200,gap:24,display:'flex',flexDirection:'column',height:'calc(100vh-64px)'}}>
+      <div><h2 style={{fontSize:24,fontWeight:600,margin:0}}>Console</h2><p style={{fontSize:14,color:c.textLight,margin:0}}>Command your AI workforce</p></div>
+      <div style={{flex:1,background:c.surface,borderRadius:12,boxShadow:`0 2px 8px ${c.border}`,display:'flex',flexDirection:'column',overflow:'hidden'}}>
+        <div style={{flex:1,overflow:'auto',padding:20}}>
+          {ms.map((m,k)=><div key={k} style={{marginBottom:16}}>
+            <div style={{fontSize:11,color:m.r==='user'?c.primary:c.textLight,marginBottom:4}}>{m.r==='user'?'You':'AI Planner'}</div>
+            <div style={{background:m.r==='user'?c.bg:c.surface,padding:12,borderRadius:8,whiteSpace:'pre-wrap',fontSize:13,lineHeight:1.5}}>{m.c}</div>
+          </div>)}
+        </div>
+        <div style={{padding:16,borderTop:`1px solid ${c.border}`,display:'flex',gap:12}}>
+          <input value={i} onChange={e=>setI(e.target.value)} onKeyDown={e=>e.key==='Enter'&&!e.shiftKey&&(e.preventDefault(),send())} placeholder="Type a command..." style={{flex:1,padding:12,border:`1px solid ${c.border}`,borderRadius:8,fontSize:14}}/>
+          <button onClick={send} style={{padding:'12px 24px',background:c.primary,color:'white',border:'none',borderRadius:8,cursor:'pointer',fontSize:14}}>Send</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function Souls() {
+  const [s, setS] = useState<SoulConfig[]>([])
+  const [show, setShow] = useState(false)
+  const [n, setN] = useState({name:'',coreTruths:'',boundaries:'',vibe:'',emoji:''})
+  useEffect(()=>{fetch(API_BASE + '/api/souls').then(r=>r.json()).then(d=>setS(d||[])).catch(()=>[])},[])
+  const add = async () => {if(!n.name)return;await fetch(API_BASE + '/api/souls',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(n)});setS(await fetch(API_BASE + '/api/souls').then(r=>r.json()));setShow(false);setN({name:'',coreTruths:'',boundaries:'',vibe:'',emoji:''})}
+  return (
+    <div style={{maxWidth:1200,gap:24,display:'flex',flexDirection:'column'}}>
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+        <div><h2 style={{fontSize:24,fontWeight:600,margin:0}}>Souls</h2><p style={{fontSize:14,color:c.textLight,margin:0}}>Configure AI agent personas</p></div>
+        <button onClick={()=>setShow(true)} style={{background:c.primary,color:'white',padding:'12px 20px',borderRadius:8,border:'none',cursor:'pointer',fontSize:13}}>+ New Soul</button>
+      </div>
+      {s.length===0?<div style={{background:c.surface,padding:60,borderRadius:12,textAlign:'center'}}><div style={{fontSize:48,marginBottom:16}}>🧠</div><p style={{color:c.textLight}}>No souls configured</p></div>:
+        <div style={{display:'grid',gridTemplateColumns:'repeat(2,1fr)',gap:16}}>{s.map(x=>(<div key={x.id} style={{background:c.surface,padding:24,borderRadius:12,boxShadow:`0 2px 8px ${c.border}`}}>
+          <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:16}}><span style={{fontSize:32}}>{x.emoji||'🧠'}</span><div><div style={{fontWeight:600,fontSize:16}}>{x.name}</div><div style={{fontSize:12,color:c.textLight}}>AI Agent</div></div></div>
+          <div style={{fontSize:12,color:c.textLight,marginBottom:8}}><strong>Core Truths:</strong> {x.coreTruths?.slice(0,80)||'-'}...</div>
+          <div style={{fontSize:12,color:c.textLight,marginBottom:8}}><strong>Vibe:</strong> {x.vibe||'-'}</div>
+          <div style={{fontSize:12,color:c.textLight}}><strong>Boundaries:</strong> {x.boundaries?.slice(0,60)||'-'}...</div>
+        </div>))}</div>}
+      {show&&<div style={{position:'fixed',top:0,left:0,right:0,bottom:0,background:'rgba(0,0,0,0.4)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:100}}>
+        <div style={{background:c.surface,padding:32,borderRadius:16,width:480,boxShadow:'0 20px 60px rgba(0,0,0,0.2)'}}>
+          <h3 style={{fontSize:18,fontWeight:600,margin:'0 0 24px 0'}}>New Soul</h3>
+          <div style={{marginBottom:16}}><label style={{display:'block',fontSize:12,marginBottom:6}}>Name</label><input value={n.name} onChange={e=>setN({...n,name:e.target.value})} style={{width:'100%',padding:12,border:`1px solid ${c.border}`,borderRadius:8,fontSize:14}}/></div>
+          <div style={{marginBottom:16}}><label style={{display:'block',fontSize:12,marginBottom:6}}>Emoji</label><input value={n.emoji} onChange={e=>setN({...n,emoji:e.target.value})} style={{width:'100%',padding:12,border:`1px solid ${c.border}`,borderRadius:8,fontSize:14}} placeholder="🤖"/></div>
+          <div style={{marginBottom:16}}><label style={{display:'block',fontSize:12,marginBottom:6}}>Core Truths</label><textarea value={n.coreTruths} onChange={e=>setN({...n,coreTruths:e.target.value})} style={{width:'100%',padding:12,border:`1px solid ${c.border}`,borderRadius:8,fontSize:14,minHeight:80}} placeholder="Be genuinely helpful..."/></div>
+          <div style={{marginBottom:16}}><label style={{display:'block',fontSize:12,marginBottom:6}}>Vibe</label><input value={n.vibe} onChange={e=>setN({...n,vibe:e.target.value})} style={{width:'100%',padding:12,border:`1px solid ${c.border}`,borderRadius:8,fontSize:14}}/></div>
+          <div style={{marginBottom:24}}><label style={{display:'block',fontSize:12,marginBottom:6}}>Boundaries</label><textarea value={n.boundaries} onChange={e=>setN({...n,boundaries:e.target.value})} style={{width:'100%',padding:12,border:`1px solid ${c.border}`,borderRadius:8,fontSize:14,minHeight:60}}/></div>
+          <div style={{display:'flex',gap:12,justifyContent:'flex-end'}}><button onClick={()=>setShow(false)} style={{padding:'12px 20px',borderRadius:8,border:`1px solid ${c.border}`,background:c.surface,cursor:'pointer'}}>Cancel</button><button onClick={add} style={{padding:'12px 20px',borderRadius:8,border:'none',background:c.primary,color:'white',cursor:'pointer'}}>Create</button></div>
+        </div>
+      </div>}
+    </div>
+  )
+}
+
+function Settings() {
+  return (
+    <div style={{maxWidth:1200,gap:24,display:'flex',flexDirection:'column'}}>
+      <div><h2 style={{fontSize:24,fontWeight:600,margin:0}}>Settings</h2><p style={{fontSize:14,color:c.textLight,margin:0}}>System configuration</p></div>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(2,1fr)',gap:20}}>
+        <div style={{background:c.surface,padding:24,borderRadius:12,boxShadow:`0 2px 8px ${c.border}`}}>
+          <h3 style={{fontSize:16,fontWeight:600,margin:'0 0 16px 0'}}>Execution Mode</h3>
+          <div style={{display:'flex',gap:8}}><span style={{padding:'8px 16px',background:c.primary+'20',color:c.primary,borderRadius:8,fontSize:13}}>Normal</span><span style={{padding:'8px 16px',background:c.bg,color:c.textLight,borderRadius:8,fontSize:13}}>Safe</span><span style={{padding:'8px 16px',background:c.bg,color:c.textLight,borderRadius:8,fontSize:13}}>Turbo</span></div>
+        </div>
+        <div style={{background:c.surface,padding:24,borderRadius:12,boxShadow:`0 2px 8px ${c.border}`}}>
+          <h3 style={{fontSize:16,fontWeight:600,margin:'0 0 16px 0'}}>Concurrency</h3>
+          <div style={{display:'flex',alignItems:'center',gap:12}}><input type="range" min="1" max="10" defaultValue="3" style={{flex:1}}/><span style={{fontSize:14,fontWeight:500}}>3</span></div>
+        </div>
+        <div style={{background:c.surface,padding:24,borderRadius:12,boxShadow:`0 2px 8px ${c.border}`}}>
+          <h3 style={{fontSize:16,fontWeight:600,margin:'0 0 16px 0'}}>Daily Budget</h3>
+          <div style={{display:'flex',alignItems:'center',gap:12}}><span style={{fontSize:24,fontWeight:600}}>$10</span><span style={{fontSize:12,color:c.textLight}}>/ day</span></div>
+        </div>
+        <div style={{background:c.surface,padding:24,borderRadius:12,boxShadow:`0 2px 8px ${c.border}`}}>
+          <h3 style={{fontSize:16,fontWeight:600,margin:'0 0 16px 0'}}>API Timeout</h3>
+          <div style={{display:'flex',alignItems:'center',gap:12}}><input type="range" min="10" max="120" defaultValue="60" style={{flex:1}}/><span style={{fontSize:14,fontWeight:500}}>60s</span></div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export default App

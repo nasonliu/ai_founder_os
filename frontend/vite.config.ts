@@ -1,9 +1,10 @@
-import path from "path"
-import react from "@vitejs/plugin-react"
 import { defineConfig } from "vite"
+import react from "@vitejs/plugin-react"
 import sourceIdentifierPlugin from 'vite-plugin-source-identifier'
+import path from "path"
 
 const isProd = process.env.BUILD_MODE === 'prod'
+
 export default defineConfig({
   plugins: [
     react(),

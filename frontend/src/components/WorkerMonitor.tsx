@@ -473,4 +473,4 @@ export function WorkerMonitor({
   );
 }
 
-export type { WorkerMonitorProps, WorkerMetric };
+export type { WorkerMonitorProps };
