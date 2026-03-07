@@ -57,6 +57,15 @@ AI Founder OS 是一个 AI-native 创业操作系统，目标不是提供 AI 工
 - 任务看板
 - Worker 监控
 - 经验账本
+- API 连接管理 (9 Providers)
+- 角色人格配置 (Souls)
+- 向量记忆系统 (Per-Agent 隔离)
+
+### 🧠 向量记忆
+- Per-Agent 记忆隔离
+- 语义搜索
+- 跨 Agent 搜索
+- 实时模型列表获取
 
 ### 🗣️ 对话式控制
 - 实时状态查询
@@ -181,3 +190,66 @@ ai_founder_os/
 ## 许可证
 
 MIT License
+
+## 🚀 部署
+
+### 前端 (已部署)
+- **URL**: https://sweuxhxuk356.space.minimaxi.com
+- **框架**: React + TypeScript + Vite
+
+### 后端 (本地运行)
+```bash
+# 安装依赖
+pip install -r requirements.txt
+
+# 启动服务
+uvicorn src.api.server:app --host 0.0.0.0 --port 8000
+```
+
+### 部署到 Railway
+```bash
+npm install -g @railway/cli
+railway login
+railway init
+railway deploy
+```
+
+## 🔑 API Key 配置
+
+访问 `/api/keys/{provider}?key=YOUR_KEY` 配置 API Key。
+
+支持的 Providers:
+- OpenAI
+- Anthropic
+- DeepSeek (已配置)
+- MiniMax
+- 阿里云 Qwen (已配置)
+- 智谱AI
+- OpenRouter
+- GitHub Copilot
+- Brave Search
+
+## 📊 测试
+
+- 单元测试: 357+ tests passed
+- API 端点: 20+
+- Workers: 6
+
+## 📁 项目结构
+
+```
+ai_founder_os/
+├── src/
+│   ├── api/server.py      # FastAPI 服务
+│   ├── memory.py          # 向量记忆
+│   ├── storage.py         # 持久化
+│   ├── api_keys.py       # API Key 管理
+│   └── ...
+├── frontend/src/App.tsx   # Dashboard
+├── docs/                  # 文档
+├── memory/vectors/        # 向量数据
+└── souls/                 # 角色配置
+```
+
+---
+*Powered by AI Founder OS*
